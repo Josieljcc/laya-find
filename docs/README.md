@@ -1,0 +1,45 @@
+# Documentação
+
+Mapa para humanos e agentes. Prefira este índice a vasculhar o repo à cegas.
+
+## Entrada
+
+| Audiência | Documento |
+|-----------|-----------|
+| Visão geral | [../README.md](../README.md) |
+| Agentes (regras + links) | [../AGENTS.md](../AGENTS.md) |
+
+## Guias
+
+| Doc | Conteúdo |
+|-----|----------|
+| [setup.md](setup.md) | venv, pacotes, Playwright, `laya-serve` |
+| [architecture.md](architecture.md) | fluxo find → Laya → JSON; módulos |
+| [development.md](development.md) | testes, layout, como contribuir |
+| [selectors/overview.md](selectors/overview.md) | papel do find vs scraper |
+| [selectors/cli.md](selectors/cli.md) | flags da CLI |
+| [selectors/json-contract.md](selectors/json-contract.md) | schema `--json` |
+| [selectors/policies.md](selectors/policies.md) | `none` / `light` / `strict` |
+| [selectors/cache.md](selectors/cache.md) | cache de seletores |
+
+## Cookbooks / exemplos
+
+| Doc | Conteúdo |
+|-----|----------|
+| [../examples/README.md](../examples/README.md) | Índice dos scripts de exemplo |
+| [../examples/LAYA_FIND.md](../examples/LAYA_FIND.md) | PowerShell + scraper consomem `--json` |
+| [../examples/find_demo.ps1](../examples/find_demo.ps1) | Demo find genérico (JSON) |
+| [../examples/hotmart_senha.ps1](../examples/hotmart_senha.ps1) | Demo find senha Hotmart (`--reveal`) |
+| [../examples/fast_triage.py](../examples/fast_triage.py) | Demo triage via `laya-serve` (sem Playwright) |
+| [../examples/laya_login.py](../examples/laya_login.py) | Demo login fill+click (experimental) |
+
+## Planos / histórico
+
+| Doc | Conteúdo |
+|-----|----------|
+| [superpowers/plans/2026-09-26-laya-selector-discoverability.md](superpowers/plans/2026-09-26-laya-selector-discoverability.md) | plano de melhorias de encontrabilidade |
+
+## Upstream
+
+- Laya: https://github.com/NandhaKishorM/laya  
+- Docs Laya: https://nandhakishorm.github.io/laya/

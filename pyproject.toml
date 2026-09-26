@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "laya-find"
+version = "0.1.0"
+description = "Discover stable DOM/network selectors with Playwright + Laya"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "laya[serve]",
+  "playwright",
+  "typer",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff",
+]
+
+[project.scripts]
+laya-find = "laya_find.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/laya_find"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
