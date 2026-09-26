@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import Protocol, TypeVar
 from urllib.parse import urlparse, urlunparse
 
-from examples.laya_find_lib.contract import summary_field
+from laya_find.contract import summary_field
 
 _UUID_SEGMENT = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",

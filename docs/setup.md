@@ -13,14 +13,17 @@
 cd C:\laya
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install "laya[serve]" playwright pytest
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m playwright install chromium
 ```
+
+O install editável fornece `laya-find`, `laya-serve` e as dependências de desenvolvimento. Instale o Chromium na primeira configuração (ou novamente após uma atualização relevante do Playwright).
 
 Verificar:
 
 ```powershell
-.\.venv\Scripts\python.exe -I -c "import laya; print(laya.__version__)"
+.\.venv\Scripts\laya-find.exe --help
+.\.venv\Scripts\python.exe -m laya_find --help
 .\.venv\Scripts\python.exe -m pytest tests -q
 ```
 

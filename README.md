@@ -16,11 +16,7 @@ Workspace local em torno do [Laya](https://github.com/NandhaKishorM/laya): motor
 
 ```powershell
 cd C:\laya
-
-# 1) Ambiente (já criado: .venv com laya + playwright)
-# Se precisar recriar: py -3.12 -m venv .venv
-# .\.venv\Scripts\python.exe -m pip install "laya[serve]" playwright pytest
-# .\.venv\Scripts\python.exe -m playwright install chromium
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 
 # 2) Servidor Laya (outro terminal)
 $env:LAYA_HOST='127.0.0.1'; $env:LAYA_PORT='8000'
@@ -28,14 +24,7 @@ $env:LAYA_PRELOAD='1'; $env:LAYA_MODELS='multilingual'; $env:LAYA_DEVICE='cpu'
 .\.venv\Scripts\laya-serve.exe
 
 # 3) Descobrir seletor
-$env:PYTHONIOENCODING='utf-8'
-.\.venv\Scripts\python.exe examples\laya_find.py `
-  --policy strict `
-  --url "https://exemplo.com/" `
-  --mode dom `
-  --intent "botão de login" `
-  --json `
-  --settle-ms 3000
+.\.venv\Scripts\laya-find.exe --policy strict --url "https://exemplo.com/" --mode dom --intent "botão de login" --json --settle-ms 3000
 ```
 
 Stdout = uma linha JSON. Logs = stderr. Detalhes: [docs/selectors/json-contract.md](docs/selectors/json-contract.md).
@@ -55,14 +44,16 @@ Stdout = uma linha JSON. Logs = stderr. Detalhes: [docs/selectors/json-contract.
 ## Estrutura
 
 ```
+src/laya_find/
+  cli.py                    # Typer / entry point laya-find
+  find.py                   # pipeline Playwright → Laya → resultado
+  selectors.py, policy.py   # lógica testável
+  cache.py, contract.py, …
 examples/
   README.md                 # índice dos exemplos
-  laya_find.py              # CLI principal
-  laya_find_heuristic.py    # wrapper → --policy strict
-  laya_find_lib/            # selectors, policy, cache, contract, …
   LAYA_FIND.md              # cookbook scraper ↔ find
   find_demo.ps1 / hotmart_senha.ps1
-  fast_triage.py / laya_login.py   # demos Laya (login = experimental)
+  fast_triage.py / laya_login.py   # demos apenas
 docs/
   …                         # guias humanos + agentes
 tests/                      # pytest

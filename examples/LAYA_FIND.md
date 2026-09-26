@@ -21,7 +21,7 @@ Guia para usar o descobridor de seletores sem acoplar login, fill ou submit ao f
 
 Seu scraper (Playwright, Selenium, HTTP, etc.) **continua responsável** por navegar, preencher campos, clicar e persistir dados. A descoberta não clica por padrão. `--reveal` é um opt-in que tenta clicar em um controle Entrar/Login para revelar campos ocultos.
 
-Use `--action print` ou `--json` no contrato suportado. `--action click` e `--action ask` são opções legadas, fora do contrato de scraper, e podem clicar após a descoberta.
+Use `--json` no contrato suportado (uma linha JSON em stdout).
 
 Pré-requisito: `laya-serve` em `http://127.0.0.1:8000` (ou `LAYA_SERVE_URL`).
 
@@ -29,20 +29,20 @@ Pré-requisito: `laya-serve` em `http://127.0.0.1:8000` (ou `LAYA_SERVE_URL`).
 
 Logs humanos vão para **stderr**; **stdout** é uma única linha JSON (ideal para `ConvertFrom-Json`).
 
-> **PowerShell:** com `$ErrorActionPreference = 'Stop'`, texto em stderr do Python vira `NativeCommandError`. Nos scripts `*.ps1` do repo isso já é tratado (`Continue` só na chamada). Em one-liners manuais, use `$ErrorActionPreference = 'Continue'` em volta do `& python ...` ou redirecione `2>logs.txt`.
+> **PowerShell:** com `$ErrorActionPreference = 'Stop'`, texto em stderr do CLI vira `NativeCommandError`. Nos scripts `*.ps1` do repo isso já é tratado (`Continue` só na chamada). Em one-liners manuais, use `$ErrorActionPreference = 'Continue'` em volta do `& laya-find ...` ou redirecione `2>logs.txt`.
 
 ```powershell
 $ErrorActionPreference = "Stop"
 Set-Location C:\laya
 $env:PYTHONIOENCODING = "utf-8"
-$python = ".\.venv\Scripts\python.exe"
+$layaFind = ".\.venv\Scripts\laya-find.exe"
 
 # Descobrir seletor (não clica)
 $stderrFile = [System.IO.Path]::GetTempFileName()
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
-    $line = & $python examples\laya_find.py `
+    $line = & $layaFind `
       --url "https://exemplo.com/login" `
       --mode dom `
       --intent "campo de senha" `
@@ -82,7 +82,7 @@ Troque de política antes de aumentar `--batch-size` ou desligar confirmação.
 
 | Item | Detalhe |
 |------|---------|
-| **Arquivo padrão** | `examples/selector_cache.json` (ao lado de `laya_find.py`) |
+| **Arquivo padrão** | `./selector_cache.json` no diretório de trabalho (cwd) |
 | **Chave** | `host[:port]::intent normalizado` — mesmo host compartilha CTAs entre URLs |
 | **Gravação** | Só seletores DOM verificados, estáveis (não voláteis), com `--use-cache` (padrão) |
 | **Hit** | Revalida o seletor na página; se falhar, a entrada é removida automaticamente |
@@ -106,7 +106,7 @@ Na 2ª visita bem-sucedida, espere `"cached": true` no JSON e tempo bem menor qu
 ## Referências
 
 - Índice exemplos: [README.md](README.md)
-- CLI: `examples/laya_find.py` (`--help`) · [docs/selectors/cli.md](../docs/selectors/cli.md)
+- CLI: `laya-find --help` (ou `python -m laya_find`) · [docs/selectors/cli.md](../docs/selectors/cli.md)
 - Demos: [find_demo.ps1](find_demo.ps1), [hotmart_senha.ps1](hotmart_senha.ps1)
 - Plano: [docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md](../docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md)
 - Upstream Laya: https://github.com/NandhaKishorM/laya

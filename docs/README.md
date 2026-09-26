@@ -13,8 +13,8 @@ Mapa para humanos e agentes. Prefira este índice a vasculhar o repo à cegas.
 
 | Doc | Conteúdo |
 |-----|----------|
-| [setup.md](setup.md) | venv, pacotes, Playwright, `laya-serve` |
-| [architecture.md](architecture.md) | fluxo find → Laya → JSON; módulos |
+| [setup.md](setup.md) | venv, install editável, Playwright, `laya-serve` |
+| [architecture.md](architecture.md) | fluxo `laya-find` → Laya → JSON; módulos em `src/laya_find/` |
 | [development.md](development.md) | testes, layout, como contribuir |
 | [selectors/overview.md](selectors/overview.md) | papel do find vs scraper |
 | [selectors/cli.md](selectors/cli.md) | flags da CLI |

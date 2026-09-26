@@ -6,8 +6,8 @@ import re
 from typing import Protocol, TypeVar
 from urllib.parse import unquote, urlparse
 
-from examples.laya_find_lib.contract import summary_field
-from examples.laya_find_lib.policy import intent_tokens
+from laya_find.contract import summary_field
+from laya_find.policy import intent_tokens
 
 
 class CandidateLike(Protocol):

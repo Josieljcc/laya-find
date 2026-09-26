@@ -1,6 +1,6 @@
 # Políticas (`--policy`)
 
-Implementação: `examples/laya_find_lib/policy.py`.
+Implementação: `src/laya_find/policy.py`.
 
 | Valor | Comportamento | Uso |
 |-------|---------------|-----|
@@ -8,7 +8,7 @@ Implementação: `examples/laya_find_lib/policy.py`.
 | **`strict`** | Narrow agressivo (senha→password, frase “cadastrar agora”, etc.) + rank | Sites barulhentos / intent claro |
 | **`none`** | Só dedupe; torneio embaralhado | Depuração; Laya “nu” (mais erro) |
 
-`laya_find_heuristic.py` força `strict`.
+Use `--policy strict` para a política agressiva.
 
 ## Dicas
 

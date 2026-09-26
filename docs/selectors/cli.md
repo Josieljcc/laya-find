@@ -1,23 +1,25 @@
-# CLI — `laya_find`
+# CLI — `laya-find`
 
 ```powershell
-.\.venv\Scripts\python.exe examples\laya_find.py --help
+.\.venv\Scripts\laya-find.exe --help
+# equivalente:
+.\.venv\Scripts\python.exe -m laya_find --help
 ```
 
-Wrapper legado: `examples\laya_find_heuristic.py` ≡ `--policy strict`.
+A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `pip install -e ".[dev]"` antes do primeiro uso.
 
 ## Flags principais
 
 | Flag | Default | Descrição |
 |------|---------|-----------|
-| `--url` | (obrigatório sem interativo) | Página |
+| `--url` | (obrigatório) | Página; também aceita `LAYA_FIND_URL` |
 | `--intent` | (obrigatório) | O que procurar |
 | `--mode` | (obrigatório) | `dom` \| `network` \| `both` |
 | `--policy` | `light` | `none` \| `light` \| `strict` — [policies.md](policies.md) |
 | `--kind` | (auto) | Força `input`/`button`/`link`/`select`/`network` |
-| `--json` | off | Uma linha JSON em stdout; logs em stderr; força `--action print` |
-| `--action` | `ask` | `print` (scraper) \| `click`/`ask` (legado) |
+| `--json` | off | Uma linha JSON em stdout; logs em stderr |
 | `--settle-ms` | `1500` | Espera pós-load |
+| `--timeout-ms` | `30000` | Timeout Playwright |
 | `--batch-size` | `10` | Tamanho do lote no torneio Laya |
 | `--serve` | `http://127.0.0.1:8000` | Base do `laya-serve` |
 | `--headed` | off | Browser visível |
@@ -25,16 +27,25 @@ Wrapper legado: `examples\laya_find_heuristic.py` ≡ `--policy strict`.
 | `--no-confirm` | off | Pula noul final |
 | `--no-tournament` | off | Uma choice limitada ao batch |
 | `--use-cache` / `--no-cache` | cache on | [cache.md](cache.md) |
-| `--cache-path` | `examples/selector_cache.json` | Arquivo de cache |
+| `--cache-path` | `selector_cache.json` | Arquivo de cache relativo ao cwd |
 | `--listen-seconds` | `5` | Duração da escuta network |
-| `--interactive` | off | Força prompts |
+
+`--action` e `--interactive` foram removidos. A descoberta sempre imprime o resultado; fill, click e submit pertencem ao scraper externo. A CLI não solicita valores interativamente: `--url`, `--intent` e `--mode` ausentes são erro de uso.
+
+## Códigos de saída
+
+| Código | Quando |
+|--------|--------|
+| `0` | Descoberta concluída (`ok:true` em JSON) |
+| `1` | Descoberta falhou (`ok:false`), inclusive nenhum candidato |
+| `2` | Erro de uso/configuração, como argumentos obrigatórios ausentes/inválidos ou `laya-serve` inacessível |
 
 ## Exemplos
 
 **Scraper (recomendado):**
 
 ```powershell
-.\.venv\Scripts\python.exe examples\laya_find.py `
+.\.venv\Scripts\laya-find.exe `
   --policy strict --url "https://site/" --mode dom `
   --intent "campo de email" --json --settle-ms 3000
 ```
@@ -42,11 +53,7 @@ Wrapper legado: `examples\laya_find_heuristic.py` ≡ `--policy strict`.
 **Humano / debug:**
 
 ```powershell
-.\.venv\Scripts\python.exe examples\laya_find.py `
+.\.venv\Scripts\laya-find.exe `
   --policy light --url "https://site/" --mode dom `
-  --intent "botão de login" --action print --headed --settle-ms 3000
+  --intent "botão de login" --headed --settle-ms 3000
 ```
-
-## Interativo
-
-Sem `--url`/`--intent`/`--mode` (e sem `--json`), a CLI pergunta. Com `--json`, flags incompletas → JSON `ok:false` e exit 2 (sem prompt).

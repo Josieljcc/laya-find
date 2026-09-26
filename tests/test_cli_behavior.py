@@ -1,6 +1,7 @@
 import json
+import urllib.error
 
-from examples import laya_find
+from laya_find.find import FindOptions, cache_lookup_allowed, run, settle_page
 
 
 class SettlePage:
@@ -23,35 +24,43 @@ class SettlePage:
         raise AssertionError("default discovery must not attempt reveal")
 
 
-def test_reveal_is_opt_in_and_default_settle_never_clicks():
-    defaults = laya_find.parse_args([])
-    opted_in = laya_find.parse_args(["--reveal"])
+def test_reveal_default_false_and_settle_never_clicks():
+    opts = FindOptions(
+        url="https://example.com",
+        intent="x",
+        mode="dom",
+        reveal=False,
+    )
     page = SettlePage()
 
-    laya_find.settle_page(page, 300, "input", reveal=defaults.reveal)
+    settle_page(page, 300, "input", reveal=opts.reveal)
 
-    assert defaults.reveal is False
-    assert opted_in.reveal is True
+    assert opts.reveal is False
     assert page.password_queries == 0
     assert page.clicks == 0
 
 
 def test_dom_cache_lookup_is_disabled_for_network_discovery():
-    assert laya_find.cache_lookup_allowed("dom", "input") is True
-    assert laya_find.cache_lookup_allowed("both", "link") is True
-    assert laya_find.cache_lookup_allowed("network", "input") is False
-    assert laya_find.cache_lookup_allowed("both", "network") is False
-    assert laya_find.cache_lookup_allowed("dom", "network") is False
+    assert cache_lookup_allowed("dom", "input") is True
+    assert cache_lookup_allowed("both", "link") is True
+    assert cache_lookup_allowed("network", "input") is False
+    assert cache_lookup_allowed("both", "network") is False
+    assert cache_lookup_allowed("dom", "network") is False
 
 
 def test_json_runtime_failure_emits_one_object_and_nonzero(monkeypatch, capsys):
-    def fail(_argv=None):
+    def fail(_options):
         raise RuntimeError("navigation exploded")
 
-    monkeypatch.setattr(laya_find, "_main_impl", fail)
+    monkeypatch.setattr("laya_find.find._run_impl", fail)
 
-    exit_code = laya_find.main(
-        ["--url", "https://example.com", "--mode", "dom", "--intent", "login", "--json"]
+    exit_code = run(
+        FindOptions(
+            url="https://example.com",
+            mode="dom",
+            intent="login",
+            json_stdout=True,
+        )
     )
 
     captured = capsys.readouterr()
@@ -61,3 +70,24 @@ def test_json_runtime_failure_emits_one_object_and_nonzero(monkeypatch, capsys):
     result = json.loads(lines[0])
     assert result["ok"] is False
     assert result["text"] == "navigation exploded"
+
+
+def test_unreachable_serve_is_configuration_error(monkeypatch, capsys):
+    def offline(_serve):
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr("laya_find.find.check_serve", offline)
+
+    exit_code = run(
+        FindOptions(
+            url="https://example.com",
+            mode="dom",
+            intent="login",
+            json_stdout=True,
+        )
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert len(captured.out.splitlines()) == 1
+    assert json.loads(captured.out)["ok"] is False

@@ -15,15 +15,12 @@ Requer laya-serve em http://127.0.0.1:8000 (ou LAYA_SERVE_URL).
 
 Integração com scraper externo: examples/LAYA_FIND.md
 
-Scraper (JSON em stdout, logs em stderr — passe URL/mode/intent e demais flags):
-  $result = .\\.venv\\Scripts\\python.exe examples\\laya_find.py --url URL --mode dom --intent "..." --json --action print | ConvertFrom-Json
+Scraper: use ``FindOptions`` + ``run``; JSON vai para stdout e logs para stderr.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
-import os
 import random
 import sys
 import time
@@ -31,34 +28,47 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
-if __package__ in (None, ""):
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from playwright.sync_api import sync_playwright
 
-from examples.laya_find_lib.contract import (
-    build_result,
-    emit_json_line,
-    summary_field,
-)
-from examples.laya_find_lib.cache import CacheStore, cache_key
-from examples.laya_find_lib.decide import (
+from laya_find.cache import CacheStore, cache_key
+from laya_find.contract import build_result, emit_json_line, summary_field
+from laya_find.decide import (
     candidates_overlapping_intent,
     short_label,
 )
-from examples.laya_find_lib.normalize import dedupe_by_destination
-from examples.laya_find_lib.policy import apply_policy
-from examples.laya_find_lib.selectors import (
+from laya_find.normalize import dedupe_by_destination
+from laya_find.policy import apply_policy
+from laya_find.selectors import (
     is_volatile_selector,
     stable_href_candidates,
 )
 
-from playwright.sync_api import sync_playwright
-
 DEFAULT_SERVE = "http://127.0.0.1:8000"
 DEFAULT_BATCH = 10
-DEFAULT_CACHE_PATH = str(Path(__file__).with_name("selector_cache.json"))
+DEFAULT_CACHE_PATH = "selector_cache.json"
 KIND_OPTIONS = ("input", "button", "link", "select", "network")
+
+
+@dataclass
+class FindOptions:
+    url: str = ""
+    intent: str = ""
+    mode: str = ""
+    kind: str = ""
+    serve: str = DEFAULT_SERVE
+    headed: bool = False
+    listen_seconds: float = 5.0
+    settle_ms: int = 1500
+    timeout_ms: int = 30000
+    batch_size: int = DEFAULT_BATCH
+    policy: str = "light"
+    no_tournament: bool = False
+    no_confirm: bool = False
+    reveal: bool = False
+    use_cache: bool = True
+    cache_path: str = DEFAULT_CACHE_PATH
+    json_stdout: bool = False
 
 
 @dataclass
@@ -77,20 +87,6 @@ def _reconfigure_stdout() -> None:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if hasattr(sys.stdin, "reconfigure"):
         sys.stdin.reconfigure(encoding="utf-8", errors="replace")
-
-
-def _ask(prompt: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    raw = input(f"{prompt}{suffix}: ").strip()
-    return raw or default
-
-
-def _ask_choice(prompt: str, options: list[tuple[str, str]], default: str) -> str:
-    print(prompt)
-    for key, label in options:
-        mark = "*" if key == default else " "
-        print(f"  [{mark}] {key} — {label}")
-    return _ask("escolha", default).lower()
 
 
 def check_serve(serve_url: str) -> dict:
@@ -810,120 +806,6 @@ def by_key(cands: list[Candidate], key: str) -> Candidate:
     raise KeyError(key)
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Encontrar componente/request com Playwright + Laya (fases)")
-    p.add_argument("--url", default=os.environ.get("LAYA_FIND_URL", ""))
-    p.add_argument("--intent", default="")
-    p.add_argument("--mode", choices=("dom", "network", "both", ""), default="")
-    p.add_argument("--kind", choices=KIND_OPTIONS + ("",), default="", help="pula classificação Laya")
-    p.add_argument("--serve", default=os.environ.get("LAYA_SERVE_URL", DEFAULT_SERVE))
-    p.add_argument("--headed", action="store_true")
-    p.add_argument("--listen-seconds", type=float, default=5.0)
-    p.add_argument("--settle-ms", type=int, default=1500, help="espera após carregar a página")
-    p.add_argument("--timeout-ms", type=int, default=30000)
-    p.add_argument("--batch-size", type=int, default=DEFAULT_BATCH)
-    p.add_argument(
-        "--policy",
-        choices=("none", "light", "strict"),
-        default="light",
-        help="dedupe only, soft ranking, or aggressive narrowing",
-    )
-    p.add_argument("--no-tournament", action="store_true", help="uma única choice com todos (cap batch)")
-    p.add_argument("--no-confirm", action="store_true", help="pula noul final")
-    p.add_argument(
-        "--reveal",
-        action="store_true",
-        help="opt-in: tenta clicar Entrar/Login para revelar campos ocultos",
-    )
-    cache_group = p.add_mutually_exclusive_group()
-    cache_group.add_argument(
-        "--use-cache",
-        dest="use_cache",
-        action="store_true",
-        default=True,
-        help="reusa seletores verificados (padrão)",
-    )
-    cache_group.add_argument(
-        "--no-cache",
-        dest="use_cache",
-        action="store_false",
-        help="ignora e não grava o cache de seletores",
-    )
-    p.add_argument("--cache-path", default=DEFAULT_CACHE_PATH)
-    p.add_argument(
-        "--action",
-        choices=("print", "click", "ask"),
-        default="ask",
-        help="'click'/'ask' são legados; use print no contrato de descoberta",
-    )
-    p.add_argument("--interactive", action="store_true")
-    p.add_argument(
-        "--json",
-        action="store_true",
-        help="stdout: uma linha JSON (logs humanos em stderr)",
-    )
-    return p.parse_args(argv)
-
-
-def resolve_interactive(args: argparse.Namespace) -> argparse.Namespace:
-    if args.json:
-        return args
-    need = args.interactive or not args.url or not args.intent or not args.mode
-    if not need:
-        return args
-    print("=== laya_find (Laya decide / mínima heurística) ===")
-    if not args.url or args.interactive:
-        args.url = _ask("URL da página", args.url or "https://luiscorreia.servidorcaju.com.br/login")
-    if not args.mode or args.interactive:
-        args.mode = _ask_choice(
-            "Modo de captura",
-            [
-                ("dom", "componentes da página"),
-                ("network", "requisições XHR/fetch"),
-                ("both", "DOM + network"),
-            ],
-            args.mode or "dom",
-        )
-        if args.mode not in ("dom", "network", "both"):
-            args.mode = "dom"
-    if not args.intent or args.interactive:
-        args.intent = _ask("O que você quer encontrar?", args.intent or "campo de senha")
-    if args.mode in ("network", "both"):
-        raw = _ask("Segundos ouvindo network", str(args.listen_seconds))
-        try:
-            args.listen_seconds = float(raw)
-        except ValueError:
-            pass
-    headed = _ask("Abrir browser visível? (s/N)", "s" if args.headed else "N")
-    args.headed = headed.lower() in ("s", "sim", "y", "yes")
-    return args
-
-
-def maybe_act(page, chosen: Candidate, action: str) -> None:
-    if chosen.source != "dom":
-        if action != "print":
-            print("Candidato network — use method/url impressos.")
-        return
-    if action == "print":
-        return
-    if action == "ask":
-        if not sys.stdin.isatty():
-            return
-        ans = _ask("Ação? [enter=nada / c=clicar]", "")
-        if ans.lower() != "c":
-            return
-    if not chosen.selector:
-        print("Sem seletor para clicar.", file=sys.stderr)
-        return
-    print(f"clicando {chosen.selector} …")
-    try:
-        page.click(chosen.selector, timeout=5000)
-        page.wait_for_timeout(800)
-        print(f"URL agora: {page.url}")
-    except Exception as exc:
-        print(f"Falha ao clicar: {exc}", file=sys.stderr)
-
-
 def _emit_json(payload: dict, json_stdout, *, exit_code: int | None = None) -> int:
     print(emit_json_line(payload), file=json_stdout)
     if exit_code is not None:
@@ -931,92 +813,89 @@ def _emit_json(payload: dict, json_stdout, *, exit_code: int | None = None) -> i
     return 0 if payload.get("ok") else 1
 
 
-def _main_impl(argv: list[str] | None = None) -> int:
+def _run_impl(options: FindOptions) -> int:
     _reconfigure_stdout()
-    args = parse_args(argv)
     json_stdout = sys.stdout
-    if args.json:
+    if options.json_stdout:
         sys.stdout = sys.stderr
-        args.action = "print"
-    else:
-        args = resolve_interactive(args)
-    if not args.url or not args.intent or not args.mode:
+    if not options.url or not options.intent or not options.mode:
         print("URL, modo e intent são obrigatórios.", file=sys.stderr)
-        if args.json:
+        if options.json_stdout:
             return _emit_json(
                 build_result(
                     ok=False,
-                    url=args.url or "",
-                    final_url=args.url or "",
-                    intent=args.intent or "",
-                    kind=args.kind or "",
-                    policy=args.policy,
+                    url=options.url or "",
+                    final_url=options.url or "",
+                    intent=options.intent or "",
+                    kind=options.kind or "",
+                    policy=options.policy,
                 ),
                 json_stdout,
                 exit_code=2,
             )
         return 2
-    batch_size = max(2, args.batch_size)
+    batch_size = max(2, options.batch_size)
 
     try:
-        health = check_serve(args.serve)
+        health = check_serve(options.serve)
     except urllib.error.URLError as exc:
-        print(f"laya-serve offline em {args.serve}: {exc}", file=sys.stderr)
-        if args.json:
+        print(f"laya-serve offline em {options.serve}: {exc}", file=sys.stderr)
+        if options.json_stdout:
             return _emit_json(
                 build_result(
                     ok=False,
-                    url=args.url,
-                    final_url=args.url,
-                    intent=args.intent,
-                    kind=args.kind or "",
-                    policy=args.policy,
+                    url=options.url,
+                    final_url=options.url,
+                    intent=options.intent,
+                    kind=options.kind or "",
+                    policy=options.policy,
                 ),
                 json_stdout,
+                exit_code=2,
             )
-        return 1
+        return 2
 
     print(f"laya-serve ok · loaded={health.get('loaded')}")
-    print(f"url={args.url}")
-    print(f"mode={args.mode} · intent={args.intent!r}")
+    print(f"url={options.url}")
+    print(f"mode={options.mode} · intent={options.intent!r}")
 
     # --- Phase 0: classify intent → kind ---
     choice_conf: float | None = None
-    if args.kind:
-        kind = args.kind
+    if options.kind:
+        kind = options.kind
         print(f"kind={kind} (override --kind)")
     else:
-        kind, ms_kind = classify_intent(args.intent, args.mode, args.serve)
+        kind, ms_kind = classify_intent(options.intent, options.mode, options.serve)
         print(f"fase 0 · kind={kind} ({ms_kind:.0f} ms)")
 
     confirm_noul: float | None = None
-    selector_cache = CacheStore.load(args.cache_path) if args.use_cache else None
-    selector_cache_key = cache_key(args.url, args.intent)
+    selector_cache = CacheStore.load(options.cache_path) if options.use_cache else None
+    selector_cache_key = cache_key(options.url, options.intent)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not args.headed)
+        browser = p.chromium.launch(headless=not options.headed)
         page = browser.new_page()
-        page.set_default_timeout(args.timeout_ms)
+        page.set_default_timeout(options.timeout_ms)
 
         cands: list[Candidate] = []
         detach_net = None
         to_net_cands = None
-        need_net = kind == "network" or args.mode in ("network", "both")
+        need_net = kind == "network" or options.mode in ("network", "both")
 
         if need_net:
             _seen, detach_net, to_net_cands = capture_network(
-                page, args.listen_seconds, attach_only=True
+                page, options.listen_seconds, attach_only=True
             )
 
-        page.goto(args.url, wait_until="domcontentloaded")
+        page.goto(options.url, wait_until="domcontentloaded")
         settle_page(
             page,
-            args.settle_ms,
+            options.settle_ms,
             kind if kind != "network" else "input",
-            reveal=args.reveal,
+            reveal=options.reveal,
         )
 
-        if selector_cache is not None and cache_lookup_allowed(args.mode, kind):
+        if selector_cache is not None and cache_lookup_allowed(options.mode, kind):
             had_cached_record = selector_cache.get(selector_cache_key) is not None
             cached = resolve_cache_hit(selector_cache, selector_cache_key, page)
             if cached is not None:
@@ -1025,30 +904,21 @@ def _main_impl(argv: list[str] | None = None) -> int:
                 cached_kind = str(cached_record.get("kind") or kind)
                 cached_href = str(cached_record.get("href_hint") or "")
                 print(f"cache hit · selector={cached_selector} matches={cached_matches}")
-                cached_choice = Candidate(
-                    key="cache",
-                    source="dom",
-                    kind=cached_kind,
-                    summary=f"cache: kind={cached_kind}, href={cached_href}",
-                    selector=cached_selector,
-                    href=cached_href,
-                )
-                maybe_act(page, cached_choice, args.action)
                 final_url = page.url
                 browser.close()
-                if args.json:
+                if options.json_stdout:
                     return _emit_json(
                         build_result(
                             ok=True,
-                            url=args.url,
+                            url=options.url,
                             final_url=final_url,
-                            intent=args.intent,
+                            intent=options.intent,
                             kind=cached_kind,
                             selector=cached_selector,
                             selector_ok=True,
                             matches=cached_matches,
                             href=cached_href,
-                            policy=args.policy,
+                            policy=options.policy,
                             cached=True,
                         ),
                         json_stdout,
@@ -1058,24 +928,22 @@ def _main_impl(argv: list[str] | None = None) -> int:
                 print("cache inválido · removendo e redescobrindo")
 
         if need_net:
-            print(f"ouvindo network por {args.listen_seconds:.1f}s …")
-            if args.headed:
+            print(f"ouvindo network por {options.listen_seconds:.1f}s …")
+            if options.headed:
                 print("(headed: interaja na página para gerar requests)")
-            page.wait_for_timeout(int(args.listen_seconds * 1000))
+            page.wait_for_timeout(int(options.listen_seconds * 1000))
             if detach_net:
                 detach_net()
             if to_net_cands:
                 net = to_net_cands()
-                if kind == "network":
-                    cands.extend(net)
-                elif args.mode == "both":
+                if kind == "network" or options.mode == "both":
                     cands.extend(net)
 
-        if kind != "network" and args.mode in ("dom", "both"):
+        if kind != "network" and options.mode in ("dom", "both"):
             kinds = collection_kinds(kind)
             print(f"coletando DOM kinds={sorted(kinds)}")
             cands.extend(extract_dom(page, kinds))
-        elif args.mode == "dom" and kind == "network":
+        elif options.mode == "dom" and kind == "network":
             # classify said network but mode is dom — collect inputs as fallback
             cands.extend(extract_dom(page, {"input"}))
 
@@ -1086,15 +954,15 @@ def _main_impl(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             browser.close()
-            if args.json:
+            if options.json_stdout:
                 return _emit_json(
                     build_result(
                         ok=False,
-                        url=args.url,
+                        url=options.url,
                         final_url=page.url,
-                        intent=args.intent,
+                        intent=options.intent,
                         kind=kind,
-                        policy=args.policy,
+                        policy=options.policy,
                     ),
                     json_stdout,
                 )
@@ -1104,10 +972,10 @@ def _main_impl(argv: list[str] | None = None) -> int:
         before = len(cands)
         cands = dedupe_by_destination(cands)
         after_dest = len(cands)
-        cands = apply_policy(cands, args.intent, args.policy)
+        cands = apply_policy(cands, options.intent, options.policy)
         print(
             f"Candidatos kind={kind}: {before} → dest={after_dest} → "
-            f"policy={args.policy}: {len(cands)}"
+            f"policy={options.policy}: {len(cands)}"
         )
         for c in cands[:30]:
             print(f"  {c.summary}")
@@ -1116,27 +984,27 @@ def _main_impl(argv: list[str] | None = None) -> int:
         print("-" * 72)
 
         # --- Phases: tournament or single shot ---
-        if args.no_tournament:
+        if options.no_tournament:
             pool = list(cands)
-            if args.policy == "none":
+            if options.policy == "none":
                 random.shuffle(pool)
             pool = pool[:batch_size]
             chosen, total_ms, choice_conf = choose_one(
-                pool, args.intent, args.serve, page.url, page.title(), f"single(n={len(pool)})"
+                pool, options.intent, options.serve, page.url, page.title(), f"single(n={len(pool)})"
             )
         else:
             chosen, total_ms, choice_conf = tournament(
                 cands,
-                args.intent,
-                args.serve,
+                options.intent,
+                options.serve,
                 page.url,
                 page.title(),
                 batch_size,
-                shuffle_pool=args.policy == "none",
+                shuffle_pool=options.policy == "none",
             )
 
-        if not args.no_confirm:
-            confirm_noul, ms_c = confirm_match(chosen, args.intent, args.serve)
+        if not options.no_confirm:
+            confirm_noul, ms_c = confirm_match(chosen, options.intent, options.serve)
             print(f"confirmação noul={confirm_noul:.2f} ({ms_c:.0f} ms) — P(atende o intent)")
 
         # Single fallback pass: low-confidence winners are retried only among
@@ -1144,7 +1012,7 @@ def _main_impl(argv: list[str] | None = None) -> int:
         low_confirm = confirm_noul is not None and confirm_noul < 0.5
         low_choice = choice_conf is not None and choice_conf < 0.25
         if low_confirm or low_choice:
-            retry_pool = candidates_overlapping_intent(cands, args.intent)
+            retry_pool = candidates_overlapping_intent(cands, options.intent)
             if retry_pool:
                 print(
                     "fallback de baixa confiança: repetindo uma vez com "
@@ -1152,17 +1020,17 @@ def _main_impl(argv: list[str] | None = None) -> int:
                 )
                 chosen, retry_ms, choice_conf = tournament(
                     retry_pool,
-                    args.intent,
-                    args.serve,
+                    options.intent,
+                    options.serve,
                     page.url,
                     page.title(),
                     batch_size,
-                    shuffle_pool=args.policy == "none",
+                    shuffle_pool=options.policy == "none",
                 )
                 total_ms += retry_ms
-                if not args.no_confirm:
+                if not options.no_confirm:
                     confirm_noul, ms_c = confirm_match(
-                        chosen, args.intent, args.serve
+                        chosen, options.intent, options.serve
                     )
                     print(
                         f"confirmação fallback noul={confirm_noul:.2f} "
@@ -1199,19 +1067,18 @@ def _main_impl(argv: list[str] | None = None) -> int:
         elif selector_cache is not None and chosen.selector and is_volatile_selector(chosen.selector):
             print("cache não salvo · seletor volátil", file=sys.stderr)
 
-        maybe_act(page, chosen, args.action)
         final_url = page.url
         browser.close()
 
-    if args.json:
+    if options.json_stdout:
         href = chosen.href or summary_field(chosen.summary, "href")
         text = summary_field(chosen.summary, "text")
         return _emit_json(
             build_result(
                 ok=True,
-                url=args.url,
+                url=options.url,
                 final_url=final_url,
-                intent=args.intent,
+                intent=options.intent,
                 kind=kind,
                 selector=chosen.selector,
                 selector_ok=sel_ok,
@@ -1220,7 +1087,7 @@ def _main_impl(argv: list[str] | None = None) -> int:
                 text=text,
                 confidence=choice_conf,
                 confirm_noul=confirm_noul,
-                policy=args.policy,
+                policy=options.policy,
                 cached=False,
             ),
             json_stdout,
@@ -1228,33 +1095,28 @@ def _main_impl(argv: list[str] | None = None) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI boundary that preserves the JSON contract on unexpected failures."""
+def run(options: FindOptions) -> int:
+    """Run discovery while preserving the JSON contract on unexpected failures."""
     json_stdout = sys.stdout
     try:
-        return _main_impl(argv)
+        return _run_impl(options)
     except Exception as exc:
-        args = parse_args(argv)
-        if not args.json:
+        if not options.json_stdout:
             print(f"Falha inesperada: {exc}", file=sys.stderr)
             return 1
         print(f"Falha inesperada: {exc}", file=sys.stderr)
         return _emit_json(
             build_result(
                 ok=False,
-                url=args.url or "",
-                final_url=args.url or "",
-                intent=args.intent or "",
-                kind=args.kind or "",
+                url=options.url or "",
+                final_url=options.url or "",
+                intent=options.intent or "",
+                kind=options.kind or "",
                 text=str(exc),
-                policy=args.policy,
+                policy=options.policy,
             ),
             json_stdout,
             exit_code=1,
         )
     finally:
         sys.stdout = json_stdout
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

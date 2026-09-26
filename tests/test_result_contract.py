@@ -1,6 +1,6 @@
 import json
 
-from examples.laya_find_lib.contract import build_result, emit_json_line
+from laya_find.contract import build_result, emit_json_line
 
 FULL_RESULT_KEYS = {
     "ok",

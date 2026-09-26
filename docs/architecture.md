@@ -19,15 +19,19 @@ URL + intent
 | Componente | Responsabilidade |
 |------------|------------------|
 | `laya-serve` | Inferência tipada HTTP |
-| `examples/laya_find.py` | CLI: coleta, política, torneio, cache, JSON |
-| `examples/laya_find_lib/` | Lógica testável (sem browser nos unit tests) |
+| `src/laya_find/cli.py` | CLI Typer e entry point `laya-find` |
+| `src/laya_find/find.py` | Orquestra coleta, política, torneio, cache e JSON |
+| `src/laya_find/` | Módulos de produto testáveis |
+| `examples/` | Demos que consomem a CLI; não contém a implementação |
 | Cache JSON | Acelera revisitas; revalida seletor antes de hit |
 | Scraper do usuário | Ação real na página |
 
-## Módulos (`laya_find_lib`)
+## Módulos (`src/laya_find`)
 
 | Módulo | Papel |
 |--------|-------|
+| `cli.py` | Flags Typer, validação e códigos de saída |
+| `find.py` | Pipeline Playwright → Laya → resultado |
 | `selectors.py` | Volatilidade / candidatos `href*=` estáveis |
 | `normalize.py` | Destino canônico (strip UUID/query) + dedupe |
 | `policy.py` | `apply_policy` none/light/strict |
