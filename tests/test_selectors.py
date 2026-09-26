@@ -1,4 +1,4 @@
-from examples.laya_find_lib.selectors import (
+from laya_find.selectors import (
     is_volatile_href,
     is_volatile_selector,
     stable_href_candidates,

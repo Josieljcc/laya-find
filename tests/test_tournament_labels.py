@@ -1,5 +1,5 @@
 def test_short_label_includes_text_and_stable_href_hint():
-    from examples.laya_find_lib.decide import short_label
+    from laya_find.decide import short_label
 
     label = short_label(
         text="Cadastrar agora",

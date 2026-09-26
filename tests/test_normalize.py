@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from examples.laya_find_lib.normalize import canonical_destination, dedupe_by_destination
+from laya_find.normalize import canonical_destination, dedupe_by_destination
 
 
 def test_strips_uuid_and_tracking_query():

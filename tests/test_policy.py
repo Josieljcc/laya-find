@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from examples.laya_find_lib.policy import apply_policy
+from laya_find.policy import apply_policy
 
 
 @dataclass

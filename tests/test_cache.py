@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from examples import laya_find
-from examples.laya_find_lib.cache import CacheStore, cache_key
+from laya_find.cache import CacheStore, cache_key
 
 
 class FakePage:
