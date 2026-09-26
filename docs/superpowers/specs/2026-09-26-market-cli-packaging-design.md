@@ -1,7 +1,7 @@
 # Design: CLI instalável no padrão Python open source
 
 **Data:** 2026-09-26  
-**Status:** aprovado em brainstorming (aguardando review do arquivo)  
+**Status:** implemented
 **Escopo:** packaging local + Typer + layout `src/` — **não** inclui publicar no PyPI
 
 ## Objetivo

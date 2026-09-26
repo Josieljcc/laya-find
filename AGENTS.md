@@ -21,7 +21,7 @@ Descobrir **seletores DOM/network estáveis** via Playwright + Laya (`laya_find`
 .\.venv\Scripts\python.exe -m pytest tests -q
 
 # CLI (laya-serve em :8000)
-.\.venv\Scripts\python.exe examples\laya_find.py --help
+.\.venv\Scripts\laya-find.exe --help
 ```
 
 Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](docs/development.md)
@@ -30,9 +30,9 @@ Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](doc
 
 | Área | Onde |
 |------|------|
-| CLI | `examples/laya_find.py` |
-| Lib | `examples/laya_find_lib/` (`selectors`, `policy`, `cache`, `contract`, `normalize`, `decide`) |
-| Exemplos | `examples/README.md` |
+| CLI | `src/laya_find/cli.py` (`laya-find`) |
+| Lib | `src/laya_find/` |
+| Exemplos | `examples/` (demos only) |
 | Integração scraper | `examples/LAYA_FIND.md` |
 | Testes | `tests/` |
 | Plano histórico | `docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md` |
@@ -41,8 +41,8 @@ Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](doc
 
 - Manter stdout de `--json` = **uma** linha JSON; logs em stderr.  
 - Preferir seletores estáveis (`#id`, `[name=…]`, `a[href*="login"]`) a URLs absolutas com UUID/query.  
-- Cache em `examples/selector_cache.json` (gitignored) — não commitá-lo.  
-- `laya_find_heuristic.py` é wrapper de `--policy strict`; mudanças de política vão em `laya_find_lib/policy.py`.  
+- Cache padrão em `./selector_cache.json` (cwd, gitignored) — não commitá-lo.
+- Mudanças de política vão em `src/laya_find/policy.py`; para política agressiva, use `--policy strict`.
 - Não commitar secrets; credenciais só via env se algum exemplo de login for usado.  
 - Commits só se o humano pedir.
 

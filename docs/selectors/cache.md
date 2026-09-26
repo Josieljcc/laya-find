@@ -1,10 +1,10 @@
 # Cache de seletores
 
-Implementação: `examples/laya_find_lib/cache.py`.
+Implementação: `src/laya_find/cache.py`.
 
 ## Comportamento
 
-- **Arquivo:** `examples/selector_cache.json` (gitignored)  
+- **Arquivo:** `./selector_cache.json` no diretório de trabalho (gitignored)
 - **Chave:** `host[:port]::intent` normalizado  
 - **Hit:** revalida seletor na página; se OK → `"cached": true` e pula torneio  
 - **Miss / stale:** rediscover e grava só seletor DOM **estável** e verificado  

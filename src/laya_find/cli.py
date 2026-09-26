@@ -19,9 +19,8 @@ app = typer.Typer(
 )
 
 
-@app.callback(invoke_without_command=True)
+@app.command()
 def _entrypoint(
-    ctx: typer.Context,
     url: str = typer.Option("", "--url", envvar="LAYA_FIND_URL"),
     intent: str = typer.Option("", "--intent"),
     mode: str = typer.Option("", "--mode", help="dom|network|both"),
@@ -48,8 +47,6 @@ def _entrypoint(
         False, "--json", help="stdout: one JSON line"
     ),
 ) -> None:
-    if ctx.invoked_subcommand is not None:
-        return
     if mode and mode not in ("dom", "network", "both"):
         raise typer.BadParameter("mode must be dom|network|both")
     if kind and kind not in ("input", "button", "link", "select", "network"):

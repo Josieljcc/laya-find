@@ -5,9 +5,17 @@ Para agentes e humanos que alteram o código deste workspace.
 ## Princípios
 
 - Find = **encontrabilidade**; scraper externo = **execução**.  
-- Testes unitários cobrem funções puras em `laya_find_lib` (sem browser).  
+- Testes unitários cobrem funções puras em `src/laya_find` (sem browser).
 - Smoke manual (Playwright + `laya-serve`) só quando a mudança afeta coleta/torneio real.  
 - Commits apenas se o humano pedir.
+
+## Preparação
+
+O install editável é obrigatório antes de executar testes ou a CLI:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
 
 ## Layout de testes
 
@@ -27,23 +35,24 @@ tests/
 .\.venv\Scripts\python.exe -m pytest tests\test_selectors.py -v
 ```
 
-`pytest.ini` define `pythonpath = .` para imports `examples.laya_find_lib…`.
+Os testes importam o pacote instalado como `laya_find`.
 
 ## Como adicionar comportamento
 
 | Mudança | Onde |
 |---------|------|
-| Nova regra de seletor estável | `laya_find_lib/selectors.py` + teste |
-| Nova política / narrow | `laya_find_lib/policy.py` + teste |
-| Campo no JSON | `laya_find_lib/contract.py` + `test_result_contract.py` + docs |
-| Flag CLI | `examples/laya_find.py` + doc [selectors/cli.md](selectors/cli.md) |
+| Nova regra de seletor estável | `src/laya_find/selectors.py` + teste |
+| Nova política / narrow | `src/laya_find/policy.py` + teste |
+| Campo no JSON | `src/laya_find/contract.py` + `test_result_contract.py` + docs |
+| Pipeline de descoberta | `src/laya_find/find.py` + teste |
+| Flag CLI | `src/laya_find/cli.py` + doc [selectors/cli.md](selectors/cli.md) |
 
 ## Smoke manual (opcional)
 
 Com `laya-serve` em `:8000`:
 
 ```powershell
-.\.venv\Scripts\python.exe examples\laya_find.py `
+.\.venv\Scripts\laya-find.exe `
   --policy strict --url "https://www.eduzz.com/" --mode dom `
   --intent "botão de login" --json --settle-ms 3000 --no-cache
 ```

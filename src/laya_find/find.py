@@ -851,8 +851,9 @@ def _run_impl(options: FindOptions) -> int:
                     policy=options.policy,
                 ),
                 json_stdout,
+                exit_code=2,
             )
-        return 1
+        return 2
 
     print(f"laya-serve ok · loaded={health.get('loaded')}")
     print(f"url={options.url}")

@@ -44,4 +44,4 @@ Ainda é uma linha JSON com `"ok": false` (args faltando, serve offline, zero ca
 
 Ver [../../examples/LAYA_FIND.md](../../examples/LAYA_FIND.md).
 
-Implementação: `examples/laya_find_lib/contract.py` · testes: `tests/test_result_contract.py`.
+Implementação: `src/laya_find/contract.py` · testes: `tests/test_result_contract.py`.

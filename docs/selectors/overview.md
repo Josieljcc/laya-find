@@ -8,7 +8,7 @@ Páginas mudam (SPA, BFF, UUID na URL). Um scraper que depende de `a[href="https
 
 | Quem | Faz |
 |------|-----|
-| `laya_find` | Abre a página, lista candidatos, pergunta ao Laya, devolve `selector` |
+| `laya-find` (`laya_find`) | Abre a página, lista candidatos, pergunta ao Laya, devolve `selector` |
 | Seu scraper | Navega, preenche, clica, grava — usando o seletor |
 
 ## Inputs típicos
@@ -21,6 +21,8 @@ Páginas mudam (SPA, BFF, UUID na URL). Um scraper que depende de `a[href="https
 ## Outputs
 
 Ver [json-contract.md](json-contract.md). Em modo humano (sem `--json`), imprime resumo no terminal.
+
+Instale com `pip install -e ".[dev]"` e execute por `laya-find` ou `python -m laya_find`. A implementação fica em `src/laya_find/`; `examples/` contém somente demos de consumo.
 
 ## Garantias e não-garantias
 
