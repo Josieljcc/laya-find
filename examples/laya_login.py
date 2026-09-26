@@ -3,7 +3,7 @@
 Playwright lê a página, Laya escolhe user/senha/submit e opcionalmente preenche.
 
 Para **só descobrir seletores** (contrato scraper / --json), use em vez disso:
-  examples/laya_find.py
+  laya-find (.\.venv\Scripts\laya-find.exe)
   examples/LAYA_FIND.md
   examples/README.md
 

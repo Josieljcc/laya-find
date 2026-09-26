@@ -1,7 +1,7 @@
 """Demo: Laya triage rápido via laya-serve (decisão + latência em ms).
 
 Não usa Playwright — só HTTP em /v1/systemone.
-Para descoberta de seletores DOM, use examples/laya_find.py (ver examples/README.md).
+Para descoberta de seletores DOM, use laya-find (ver examples/README.md e LAYA_FIND.md).
 
 Requer o server no ar (docs/setup.md):
   .\\.venv\\Scripts\\laya-serve.exe
