@@ -16,14 +16,15 @@ Descobrir **seletores DOM/network estáveis** via Playwright + Laya (`laya_find`
 
 ## Comandos úteis
 
-```powershell
-# Testes
-.\.venv\Scripts\python.exe -m pytest tests -q
+Com venv ativo (Linux/macOS: `source .venv/bin/activate`; Windows: `.\.venv\Scripts\Activate.ps1`):
 
-# CLI (laya-serve em :8000)
-.\.venv\Scripts\laya-find.exe --help
-.\.venv\Scripts\laya-login.exe --help
+```bash
+python -m pytest tests -q
+laya-find --help
+laya-login --help
 ```
+
+Sem ativar: `.venv/bin/…` (Unix) ou `.venv\Scripts\….exe` (Windows).
 
 Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](docs/development.md)
 

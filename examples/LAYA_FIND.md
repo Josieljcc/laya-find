@@ -23,9 +23,32 @@ Seu scraper (Playwright, Selenium, HTTP, etc.) **continua responsável** por nav
 
 Use `--json` no contrato suportado (uma linha JSON em stdout).
 
-Pré-requisito: `laya-serve` em `http://127.0.0.1:8000` (ou `LAYA_SERVE_URL`).
+Pré-requisito: `laya-serve` em `http://127.0.0.1:8000` (ou `LAYA_SERVE_URL`). Setup: [../docs/setup.md](../docs/setup.md).
 
-## PowerShell consumindo `--json`
+## Bash / zsh consumindo `--json` (Linux / macOS)
+
+Logs humanos vão para **stderr**; **stdout** é uma única linha JSON.
+
+```bash
+cd /caminho/para/laya-find
+source .venv/bin/activate
+
+line=$(laya-find \
+  --url "https://exemplo.com/login" \
+  --mode dom \
+  --intent "campo de senha" \
+  --policy light \
+  --json \
+  --settle-ms 3000 \
+  2>/tmp/laya-find.err)
+
+cat /tmp/laya-find.err >&2   # opcional: ver logs
+echo "$line" | python -c 'import json,sys; r=json.load(sys.stdin); print(r.get("selector"), r.get("ok"))'
+```
+
+Campos úteis do contrato: `selector`, `selector_ok`, `matches`, `href`, `text`, `confidence`, `confirm_noul`, `policy`, `cached`, `final_url`.
+
+## PowerShell consumindo `--json` (Windows)
 
 Logs humanos vão para **stderr**; **stdout** é uma única linha JSON (ideal para `ConvertFrom-Json`).
 
@@ -33,9 +56,10 @@ Logs humanos vão para **stderr**; **stdout** é uma única linha JSON (ideal pa
 
 ```powershell
 $ErrorActionPreference = "Stop"
-Set-Location C:\laya
+Set-Location $PSScriptRoot\..   # ou o path do clone
 $env:PYTHONIOENCODING = "utf-8"
-$layaFind = ".\.venv\Scripts\laya-find.exe"
+.\.venv\Scripts\Activate.ps1
+$layaFind = "laya-find"
 
 # Descobrir seletor (não clica)
 $stderrFile = [System.IO.Path]::GetTempFileName()
@@ -91,7 +115,7 @@ Troque de política antes de aumentar `--batch-size` ou desligar confirmação.
 
 - Uma execução: `--no-cache` (ignora leitura e **não grava**).
 - Só esta combinação site+intent: apague a chave correspondente em `selector_cache.json`, ou delete o arquivo inteiro.
-- Outro caminho: `--cache-path C:\caminho\outro_cache.json`.
+- Outro caminho: `--cache-path /caminho/outro_cache.json` (Windows: `C:\caminho\outro_cache.json`).
 
 Na 2ª visita bem-sucedida, espere `"cached": true` no JSON e tempo bem menor que a 1ª run.
 

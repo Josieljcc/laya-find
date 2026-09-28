@@ -15,20 +15,25 @@ Workspace local em torno do [Laya](https://github.com/NandhaKishorM/laya): motor
 
 ## Início rápido
 
-```powershell
-cd C:\laya
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Setup completo (Linux / macOS / Windows): [docs/setup.md](docs/setup.md).
 
-# 2) Servidor Laya (outro terminal)
-$env:LAYA_HOST='127.0.0.1'; $env:LAYA_PORT='8000'
-$env:LAYA_PRELOAD='1'; $env:LAYA_MODELS='multilingual'; $env:LAYA_DEVICE='cpu'
-.\.venv\Scripts\laya-serve.exe
+Com o venv ativo (`source .venv/bin/activate` ou `.\.venv\Scripts\Activate.ps1`):
+
+```bash
+python -m pip install -e ".[dev]"
+python -m playwright install chromium
+
+# 2) Servidor Laya (outro terminal; export LAYA_* no bash ou $env: no PowerShell)
+export LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_PRELOAD=1
+export LAYA_MODELS=multilingual LAYA_DEVICE=cpu
+laya-serve
 
 # 3) Descobrir seletor
-.\.venv\Scripts\laya-find.exe --policy strict --url "https://exemplo.com/" --mode dom --intent "botão de login" --json --settle-ms 3000
+laya-find --policy strict --url "https://exemplo.com/" --mode dom \
+  --intent "botão de login" --json --settle-ms 3000
 
 # 3b) Página atrás de login (manual na janela + find na mesma sessão)
-.\.venv\Scripts\laya-login.exe --login-url "https://exemplo.com/login"
+laya-login --login-url "https://exemplo.com/login"
 # opcional: --url / --intent / --json / --loop
 ```
 
