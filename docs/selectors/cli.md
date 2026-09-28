@@ -16,7 +16,7 @@ A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `
 | `--intent` | (obrigatório) | O que procurar |
 | `--mode` | (obrigatório) | `dom` \| `network` \| `both` |
 | `--policy` | `light` | `none` \| `light` \| `strict` — [policies.md](policies.md) |
-| `--kind` | (auto) | Força `input`/`button`/`link`/`select`/`network` |
+| `--kind` | (auto) | Força `input`/`button`/`link`/`select`/`network`/`clickable`/`image` |
 | `--json` | off | Uma linha JSON em stdout; logs em stderr |
 | `--settle-ms` | `1500` | Espera pós-load |
 | `--timeout-ms` | `30000` | Timeout Playwright |
@@ -31,6 +31,17 @@ A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `
 | `--listen-seconds` | `5` | Duração da escuta network |
 
 `--action` e `--interactive` foram removidos. A descoberta sempre imprime o resultado; fill, click e submit pertencem ao scraper externo. A CLI não solicita valores interativamente: `--url`, `--intent` e `--mode` ausentes são erro de uso.
+
+## `laya-login` (página atrás de autenticação)
+
+```powershell
+.\.venv\Scripts\laya-login.exe --help
+.\.venv\Scripts\laya-login.exe --login-url "https://exemplo.com/login"
+# depois: Enter (pós-login) → URL alvo + intent → find na mesma sessão
+.\.venv\Scripts\laya-login.exe --login-url "…" --url "…" --intent "…" --json --loop
+```
+
+Login é **manual** (Chromium headed). Não preenche credenciais. Spec: [../superpowers/specs/2026-09-28-laya-login-design.md](../superpowers/specs/2026-09-28-laya-login-design.md).
 
 ## Códigos de saída
 
@@ -50,10 +61,24 @@ A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `
   --intent "campo de email" --json --settle-ms 3000
 ```
 
-**Humano / debug:**
+**Clickable (div/collapse, não button nativo):**
 
 ```powershell
 .\.venv\Scripts\laya-find.exe `
-  --policy light --url "https://site/" --mode dom `
-  --intent "botão de login" --headed --settle-ms 3000
+  --url "https://site/app" --mode dom `
+  --intent "cabeçalho collapse do módulo" --kind clickable `
+  --json --settle-ms 3000
 ```
+
+`clickable` coleta `div`/`span` com `cursor-pointer`, `role=button`, `data-linha-abrir`, `aria-expanded` (não nativos `button`/`a`/`input`). O `matches` no JSON indica quantos elementos o seletor cobre.
+
+**Image (`<img>` / thumbnails):**
+
+```powershell
+.\.venv\Scripts\laya-find.exe `
+  --url "https://site/app" --mode dom `
+  --intent "imagem do módulo" --kind image `
+  --json --settle-ms 3000
+```
+
+Prefere `img[alt=…]` e `[data-sortable-type] img` a URLs CDN com token.

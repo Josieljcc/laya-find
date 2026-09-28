@@ -5,7 +5,7 @@ Instruções curtas para agentes de código neste workspace. Detalhes ficam nos 
 ## Missão do repo
 
 Descobrir **seletores DOM/network estáveis** via Playwright + Laya (`laya_find`), para um **scraper externo** consumir.  
-**Não** implementar fill/click/submit/login E2E no caminho feliz do find (exceto `--reveal` opt-in documentado).
+**Não** implementar fill/click/submit automático no caminho feliz do find (exceto `--reveal` opt-in). Login **manual** headed fica em `laya-login` (mesma sessão Playwright → find).
 
 ## Antes de mudar código
 
@@ -22,6 +22,7 @@ Descobrir **seletores DOM/network estáveis** via Playwright + Laya (`laya_find`
 
 # CLI (laya-serve em :8000)
 .\.venv\Scripts\laya-find.exe --help
+.\.venv\Scripts\laya-login.exe --help
 ```
 
 Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](docs/development.md)
@@ -30,7 +31,9 @@ Setup completo: [docs/setup.md](docs/setup.md) · Dev: [docs/development.md](doc
 
 | Área | Onde |
 |------|------|
-| CLI | `src/laya_find/cli.py` (`laya-find`) |
+| CLI find | `src/laya_find/cli.py` (`laya-find`) |
+| CLI login | `src/laya_find/login_cli.py` (`laya-login`) |
+| Wizard login | `src/laya_find/login_flow.py` |
 | Lib | `src/laya_find/` |
 | Exemplos | `examples/` (demos only) |
 | Integração scraper | `examples/LAYA_FIND.md` |

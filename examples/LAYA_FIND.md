@@ -101,12 +101,12 @@ Na 2ª visita bem-sucedida, espere `"cached": true` no JSON e tempo bem menor qu
 2. **noul otimista** — A confirmação final (`confirm_noul`) pode marcar “atende o intent” com confiança alta em CTAs parecidos (ex.: Ajuda vs Cadastrar). Trate `confirm_noul < 0.5` como sinal de revisão manual; use `--no-confirm` só se você aceitar o risco.
 3. **`none` pode errar** — Sem ranking, o torneio depende mais do acaso de embaralhamento e do tamanho do pool; útil para depuração, não como padrão em produção.
 4. **Cache por host** — Intent igual em páginas diferentes do mesmo site pode reutilizar seletor inadequado; invalide o cache após redesign.
-5. **Fora de escopo** — Cadeias fill/click/submit e login E2E não fazem parte do find; veja `docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md`.
+5. **Fora de escopo do find** — Cadeias fill/click/submit automáticas não fazem parte do `laya-find`. Para página autenticada: use **`laya-login`** (login manual + find na mesma sessão) — ver [docs/selectors/cli.md](../docs/selectors/cli.md).
 
 ## Referências
 
 - Índice exemplos: [README.md](README.md)
-- CLI: `laya-find --help` (ou `python -m laya_find`) · [docs/selectors/cli.md](../docs/selectors/cli.md)
-- Demos: [find_demo.ps1](find_demo.ps1), [hotmart_senha.ps1](hotmart_senha.ps1)
+- CLI: `laya-find --help` / `laya-login --help` · [docs/selectors/cli.md](../docs/selectors/cli.md)
+- Demos: [find_demo.ps1](find_demo.ps1), [hotmart_senha.ps1](hotmart_senha.ps1), [save_auth.py](save_auth.py)
 - Plano: [docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md](../docs/superpowers/plans/2026-09-26-laya-selector-discoverability.md)
 - Upstream Laya: https://github.com/NandhaKishorM/laya

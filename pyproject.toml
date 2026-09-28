@@ -22,6 +22,7 @@ dev = [
 
 [project.scripts]
 laya-find = "laya_find.cli:main"
+laya-login = "laya_find.login_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/laya_find"]

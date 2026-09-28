@@ -20,7 +20,9 @@ URL + intent
 |------------|------------------|
 | `laya-serve` | Inferência tipada HTTP |
 | `src/laya_find/cli.py` | CLI Typer e entry point `laya-find` |
-| `src/laya_find/find.py` | Orquestra coleta, política, torneio, cache e JSON |
+| `src/laya_find/login_cli.py` | Entry point `laya-login` (wizard) |
+| `src/laya_find/login_flow.py` | Login manual headed + find na mesma `page` |
+| `src/laya_find/find.py` | `run` (abre browser) e `run_on_page` (reusa `page`) |
 | `src/laya_find/` | Módulos de produto testáveis |
 | `examples/` | Demos que consomem a CLI; não contém a implementação |
 | Cache JSON | Acelera revisitas; revalida seletor antes de hit |
@@ -31,6 +33,7 @@ URL + intent
 | Módulo | Papel |
 |--------|-------|
 | `cli.py` | Flags Typer, validação e códigos de saída |
+| `login_cli.py` / `login_flow.py` | Wizard login manual → `run_on_page` |
 | `find.py` | Pipeline Playwright → Laya → resultado |
 | `selectors.py` | Volatilidade / candidatos `href*=` estáveis |
 | `normalize.py` | Destino canônico (strip UUID/query) + dedupe |
@@ -41,7 +44,7 @@ URL + intent
 
 ## Fluxo de confiança
 
-1. Coleta ampla o suficiente (button inclui links CTA).  
+1. Coleta ampla o suficiente (button inclui links CTA; `clickable` / `image` quando o kind pedir).  
 2. Remove clones do mesmo destino.  
 3. Política reduz / ordena candidatos.  
 4. Laya escolhe em lotes; se confiança baixa, um retry com overlap de intent.  
