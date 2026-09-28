@@ -47,7 +47,9 @@ from laya_find.selectors import (
 DEFAULT_SERVE = "http://127.0.0.1:8000"
 DEFAULT_BATCH = 10
 DEFAULT_CACHE_PATH = "selector_cache.json"
-KIND_OPTIONS = ("input", "button", "link", "select", "network")
+KIND_OPTIONS = ("input", "button", "link", "select", "network", "clickable", "image")
+
+
 
 
 @dataclass
@@ -121,6 +123,45 @@ def heuristic_kind(intent: str, mode: str) -> str | None:
         return "network"
     if any(w in t for w in ("request", "xhr", "fetch", "api", "endpoint", "requisição", "requisicao")):
         return "network" if mode in ("network", "both") else None
+    if any(
+        w in t
+        for w in (
+            "clickable",
+            "cursor-pointer",
+            "collapse",
+            "colapse",
+            "accordion",
+            "expandir",
+            "recolher",
+            "div clicável",
+            "div clicavel",
+            "cabeçalho clicável",
+            "cabecalho clicavel",
+            "card clicável",
+            "card clicavel",
+            "linha clicável",
+            "linha clicavel",
+        )
+    ):
+        return "clickable"
+    if any(
+        w in t
+        for w in (
+            "imagem",
+            "imagens",
+            "image",
+            "images",
+            "img",
+            "thumbnail",
+            "thumb",
+            "foto",
+            "fotos",
+            "avatar",
+            "capa",
+            "banner",
+        )
+    ):
+        return "image"
     if any(w in t for w in ("senha", "password", "passwd", "email", "e-mail", "usuário", "usuario", "user", "campo", "input", "texto", "search", "busca", "pesquis")):
         if any(w in t for w in ("botão", "botao", "button", "clicar", "click")):
             return None
@@ -160,6 +201,15 @@ def classify_intent(intent: str, mode: str, serve_url: str) -> tuple[str, float]
             "Lista suspensa / dropdown / combobox. "
             "Only when the user wants a select/dropdown, not a text field."
         ),
+        "clickable": (
+            "Área clicável que NÃO é button/a/input nativo: div/span com cursor-pointer, "
+            "role=button, collapse/accordion header, data-linha-abrir, x-on:click. "
+            "Use when the user wants module/section headers, expandable rows, or clickable cards."
+        ),
+        "image": (
+            "Elemento de imagem: tag img (ou picture>img). "
+            "Use for thumbnails, covers, avatars, product/module images — not icon-only SVG buttons."
+        ),
     }
     if mode == "both":
         criteria["network"] = (
@@ -179,6 +229,8 @@ def classify_intent(intent: str, mode: str, serve_url: str) -> tuple[str, float]
                 "botão/entrar/salvar/enviar => button. "
                 "link/menu/href => link. "
                 "dropdown/select => select. "
+                "collapse/accordion/div clicável/cursor-pointer/cabeçalho de módulo => clickable. "
+                "imagem/img/thumbnail/foto/capa => image. "
                 "api/request/xhr => network. "
                 "NÃO escolha select a menos que a intenção cite lista/dropdown."
             ),
@@ -227,6 +279,8 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
         const hrefAttr = el.getAttribute('href') || '';
         const role = el.getAttribute('role') || '';
         const dataTest = el.getAttribute('data-testid') || el.getAttribute('data-test') || '';
+        const alt = el.getAttribute('alt') || '';
+        const srcAttr = el.getAttribute('src') || '';
         const candidates = [];
 
         // Higher = more stable across BFF/SPA reloads (avoid full URLs with UUID/query).
@@ -234,15 +288,22 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
           if (!sel) return 0;
           if (sel.startsWith('#')) return 100;
           if (sel.includes('[data-testid') || sel.includes('[data-test')) return 95;
+          if (sel.includes('[data-sortable-type')) return 93;
+          if (sel.includes('[data-linha-abrir')) return 92;
           if (sel.includes('[name="') && sel.includes('[type="')) return 92;
           if (sel.includes('[name="')) return 88;
           if (/href\\*="(login|signin|sign-in|signup|sign-up|cadastro|register|auth)"/i.test(sel)) return 90;
           if (/href\\*="[^"]{1,48}"/.test(sel) && !/https?:/.test(sel)) return 82;
           if (sel.includes('[href*=')) return 75;
+          if (sel.includes('[aria-expanded')) return 78;
           if (sel.includes('[aria-label=')) return 70;
+          if (sel.includes('[alt=')) return 74;
           if (sel.includes('[placeholder=')) return 68;
+          if (sel.includes('.cursor-pointer')) return 72;
+          if (/\\[src\\*=/.test(sel) && !/https?:/.test(sel)) return 55;
           // Full absolute / long href= is brittle (UUID, redirectTo, logos…)
           if (/\\[href="https?:/.test(sel)) return 8;
+          if (/\\[src="https?:/.test(sel)) return 6;
           if (/\\[href="/.test(sel) && sel.length > 60) return 12;
           if (/\\[href="/.test(sel)) return 40;
           return 30;
@@ -305,7 +366,67 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
         if (placeholder) candidates.push(`${tag}[placeholder="${q(placeholder)}"]`);
         if (role) candidates.push(`${tag}[role="${q(role)}"]`);
 
+        if (kind === 'clickable') {
+          if (el.classList && el.classList.contains('cursor-pointer')) {
+            candidates.push(`${tag}.cursor-pointer`);
+            candidates.push('.cursor-pointer');
+          }
+          if (el.hasAttribute('data-linha-abrir')) {
+            candidates.push('[data-linha-abrir]');
+            candidates.push(`${tag}[data-linha-abrir]`);
+          }
+          if (el.hasAttribute('aria-expanded')) {
+            candidates.push(`${tag}[aria-expanded]`);
+            candidates.push('[aria-expanded]');
+          }
+          const sortable = el.closest('[data-sortable-type]');
+          if (sortable) {
+            const st = sortable.getAttribute('data-sortable-type') || '';
+            if (st) {
+              if (el.classList && el.classList.contains('cursor-pointer')) {
+                candidates.push(`[data-sortable-type="${q(st)}"] ${tag}.cursor-pointer`);
+                candidates.push(`[data-sortable-type="${q(st)}"] .cursor-pointer`);
+              }
+              if (el.hasAttribute('data-linha-abrir')) {
+                candidates.push(`[data-sortable-type="${q(st)}"] [data-linha-abrir]`);
+              }
+            }
+          }
+        }
+
+        if (kind === 'image') {
+          if (alt) {
+            candidates.push(`img[alt="${q(alt)}"]`);
+            // short stable fragment of alt
+            const altTok = alt.trim().split(/\\s+/).filter(Boolean)[0] || '';
+            if (altTok.length >= 3 && altTok.length <= 40) {
+              candidates.push(`img[alt*="${q(altTok)}"]`);
+            }
+          }
+          candidates.push('img');
+          const sortable = el.closest('[data-sortable-type]');
+          if (sortable) {
+            const st = sortable.getAttribute('data-sortable-type') || '';
+            if (st) {
+              candidates.push(`[data-sortable-type="${q(st)}"] img`);
+              if (alt) {
+                candidates.push(`[data-sortable-type="${q(st)}"] img[alt="${q(alt)}"]`);
+              }
+            }
+          }
+          const parentBtn = el.closest('button, a, [role="button"]');
+          if (parentBtn) {
+            candidates.push('button img');
+            candidates.push('a img');
+          }
+          // Avoid full CDN src with tokens; prefer path fragment only if short/stable
+          if (srcAttr && srcAttr.length < 80 && !/[?&](token|uptkn|sig)=/i.test(srcAttr)) {
+            candidates.push(`img[src="${q(srcAttr)}"]`);
+          }
+        }
+
         // Score: stability first, then fewer matches. Accept up to 8 matches for stable sels.
+        // clickable list patterns may validly match many repeated headers/rows.
         let best = '';
         let bestScore = -Infinity;
         for (const sel of [...new Set(candidates)]) {
@@ -313,10 +434,16 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
           if (!n) continue;
           const count = n === true ? 1 : n;
           const stab = stability(sel);
-          const maxOk = stab >= 75 ? 8 : (stab >= 40 ? 3 : 1);
+          let maxOk = stab >= 75 ? 8 : (stab >= 40 ? 3 : 1);
+          if (kind === 'clickable' || kind === 'image') {
+            maxOk = stab >= 70 ? 80 : (stab >= 40 ? 40 : 12);
+          }
           if (count > maxOk) continue;
           // Prefer stable; among equals prefer fewer matches
-          const score = stab * 100 - count;
+          // For clickable/image list intents, prefer selectors that cover the repeated set
+          const score = (kind === 'clickable' || kind === 'image')
+            ? stab * 100 + Math.min(count, 40)
+            : stab * 100 - count;
           if (score > bestScore) {
             bestScore = score;
             best = sel;
@@ -352,6 +479,8 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
         const autocomplete = el.getAttribute('autocomplete') || '';
         const role = el.getAttribute('role') || '';
         const href = el.getAttribute('href') || '';
+        const alt = el.getAttribute('alt') || '';
+        const src = el.getAttribute('src') || '';
         const text = (el.innerText || el.value || '').trim().slice(0, 100);
         let label = '';
         if (id) {
@@ -364,9 +493,13 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
         }
         if (kind === 'button' && type !== 'submit' && !id && !text && !aria && !name) return;
         if (kind === 'link' && !text && !aria && !href) return;
+        if (kind === 'clickable' && !text && !aria && !role && !el.classList.contains('cursor-pointer')
+            && !el.hasAttribute('data-linha-abrir') && !el.hasAttribute('aria-expanded')) return;
+        if (kind === 'image' && tag !== 'img') return;
+        if (kind === 'image' && !alt && !src && !id) return;
 
         const selector = buildSelector(el, kind, root);
-        out.push({ kind, tag, type, id, name, placeholder, aria, autocomplete, role, href, label, text, selector, frame: frameHint || '' });
+        out.push({ kind, tag, type, id, name, placeholder, aria, autocomplete, role, href, alt, src, label, text, selector, frame: frameHint || '' });
       };
 
       const scan = (root, frameHint) => {
@@ -390,6 +523,59 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
             const t = (el.innerText || '').trim();
             const aria = el.getAttribute('aria-label') || '';
             if (t || aria) push(el, 'link', frameHint, doc);
+          });
+        }
+        if (want.has('clickable')) {
+          const seen = new Set();
+          const isClickableHost = (el) => {
+            const tag = el.tagName.toLowerCase();
+            if (['button', 'a', 'input', 'select', 'textarea', 'option', 'label', 'svg', 'path', 'img'].includes(tag)) {
+              return false;
+            }
+            const role = (el.getAttribute('role') || '').toLowerCase();
+            if (role === 'button') return true;
+            if (el.hasAttribute('data-linha-abrir')) return true;
+            if (el.hasAttribute('aria-expanded') && tag !== 'button') return true;
+            if (el.classList && el.classList.contains('cursor-pointer')) return true;
+            try {
+              if (window.getComputedStyle(el).cursor === 'pointer') return true;
+            } catch (e) {}
+            for (const attr of el.attributes) {
+              const n = attr.name.toLowerCase();
+              if (n === 'onclick' || n.startsWith('x-on:click') || n === '@click') return true;
+            }
+            return false;
+          };
+          scope.querySelectorAll(
+            '.cursor-pointer, [role="button"], [data-linha-abrir], [aria-expanded], [tabindex="0"]'
+          ).forEach(el => {
+            if (!isClickableHost(el)) return;
+            // Prefer outermost clickable in a nest of cursor-pointer wrappers
+            let parent = el.parentElement;
+            while (parent && parent !== scope && parent !== doc.body) {
+              if (isClickableHost(parent) && parent.querySelector && parent.contains(el) && parent !== el) {
+                // if parent is also a clickable host matching our query, skip child
+                if (parent.classList?.contains('cursor-pointer')
+                    || parent.hasAttribute('data-linha-abrir')
+                    || (parent.getAttribute('role') || '').toLowerCase() === 'button') {
+                  return;
+                }
+              }
+              parent = parent.parentElement;
+            }
+            if (seen.has(el)) return;
+            seen.add(el);
+            push(el, 'clickable', frameHint, doc);
+          });
+        }
+        if (want.has('image')) {
+          scope.querySelectorAll('img').forEach(el => {
+            // Skip 1x1 trackers / empty decorative if no alt and tiny
+            const alt = (el.getAttribute('alt') || '').trim();
+            const w = Number(el.getAttribute('width') || 0);
+            const h = Number(el.getAttribute('height') || 0);
+            if (!alt && w > 0 && h > 0 && w <= 2 && h <= 2) return;
+            push(el, 'image', frameHint, doc);
           });
         }
       };
@@ -416,7 +602,7 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
     for i, item in enumerate(raw, 1):
         key = f"dom_{i}"
         bits = [f"kind={item['kind']}", f"tag={item['tag']}"]
-        for attr in ("type", "id", "name", "placeholder", "label", "aria", "autocomplete", "role", "text", "href", "frame"):
+        for attr in ("type", "id", "name", "placeholder", "label", "aria", "autocomplete", "role", "text", "href", "alt", "src", "frame"):
             if item.get(attr):
                 label = "aria-label" if attr == "aria" else attr
                 bits.append(f"{label}={item[attr]}")
@@ -427,7 +613,7 @@ def extract_dom(page, kinds: set[str] | None = None) -> list[Candidate]:
                 kind=item["kind"],
                 summary=f"{key}: " + ", ".join(bits),
                 selector=item.get("selector") or "",
-                href=item.get("href") or "",
+                href=item.get("href") or item.get("src") or "",
             )
         )
     return cands
@@ -662,6 +848,10 @@ def collection_kinds(kind: str) -> set[str]:
         return {"button", "link"}
     if kind == "link":
         return {"link", "button"}
+    if kind == "clickable":
+        return {"clickable"}
+    if kind == "image":
+        return {"image"}
     return {kind}
 
 
@@ -813,11 +1003,29 @@ def _emit_json(payload: dict, json_stdout, *, exit_code: int | None = None) -> i
     return 0 if payload.get("ok") else 1
 
 
-def _run_impl(options: FindOptions) -> int:
+
+def run_on_page(page, options: FindOptions, *, json_stdout=None) -> int:
+    """Discover on an existing Playwright page.
+
+    Does not launch or close the browser. Navigates to ``options.url``.
+    If ``json_stdout`` is omitted and ``options.json_stdout`` is set, redirects
+    human logs to stderr for the duration of the call.
+    """
     _reconfigure_stdout()
-    json_stdout = sys.stdout
-    if options.json_stdout:
-        sys.stdout = sys.stderr
+    own_redirect = False
+    if json_stdout is None:
+        json_stdout = sys.stdout
+        if options.json_stdout:
+            sys.stdout = sys.stderr
+            own_redirect = True
+    try:
+        return _run_on_page_impl(page, options, json_stdout)
+    finally:
+        if own_redirect:
+            sys.stdout = json_stdout
+
+
+def _run_on_page_impl(page, options: FindOptions, json_stdout) -> int:
     if not options.url or not options.intent or not options.mode:
         print("URL, modo e intent são obrigatórios.", file=sys.stderr)
         if options.json_stdout:
@@ -859,7 +1067,6 @@ def _run_impl(options: FindOptions) -> int:
     print(f"url={options.url}")
     print(f"mode={options.mode} · intent={options.intent!r}")
 
-    # --- Phase 0: classify intent → kind ---
     choice_conf: float | None = None
     if options.kind:
         kind = options.kind
@@ -872,129 +1079,152 @@ def _run_impl(options: FindOptions) -> int:
     selector_cache = CacheStore.load(options.cache_path) if options.use_cache else None
     selector_cache_key = cache_key(options.url, options.intent)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not options.headed)
-        page = browser.new_page()
-        page.set_default_timeout(options.timeout_ms)
+    page.set_default_timeout(options.timeout_ms)
 
-        cands: list[Candidate] = []
-        detach_net = None
-        to_net_cands = None
-        need_net = kind == "network" or options.mode in ("network", "both")
+    cands: list[Candidate] = []
+    detach_net = None
+    to_net_cands = None
+    need_net = kind == "network" or options.mode in ("network", "both")
 
-        if need_net:
-            _seen, detach_net, to_net_cands = capture_network(
-                page, options.listen_seconds, attach_only=True
-            )
-
-        page.goto(options.url, wait_until="domcontentloaded")
-        settle_page(
-            page,
-            options.settle_ms,
-            kind if kind != "network" else "input",
-            reveal=options.reveal,
+    if need_net:
+        _seen, detach_net, to_net_cands = capture_network(
+            page, options.listen_seconds, attach_only=True
         )
 
-        if selector_cache is not None and cache_lookup_allowed(options.mode, kind):
-            had_cached_record = selector_cache.get(selector_cache_key) is not None
-            cached = resolve_cache_hit(selector_cache, selector_cache_key, page)
-            if cached is not None:
-                cached_record, cached_matches = cached
-                cached_selector = str(cached_record.get("selector") or "")
-                cached_kind = str(cached_record.get("kind") or kind)
-                cached_href = str(cached_record.get("href_hint") or "")
-                print(f"cache hit · selector={cached_selector} matches={cached_matches}")
-                final_url = page.url
-                browser.close()
-                if options.json_stdout:
-                    return _emit_json(
-                        build_result(
-                            ok=True,
-                            url=options.url,
-                            final_url=final_url,
-                            intent=options.intent,
-                            kind=cached_kind,
-                            selector=cached_selector,
-                            selector_ok=True,
-                            matches=cached_matches,
-                            href=cached_href,
-                            policy=options.policy,
-                            cached=True,
-                        ),
-                        json_stdout,
-                    )
-                return 0
-            if had_cached_record:
-                print("cache inválido · removendo e redescobrindo")
+    page.goto(options.url, wait_until="domcontentloaded")
+    settle_page(
+        page,
+        options.settle_ms,
+        kind if kind != "network" else "input",
+        reveal=options.reveal,
+    )
 
-        if need_net:
-            print(f"ouvindo network por {options.listen_seconds:.1f}s …")
-            if options.headed:
-                print("(headed: interaja na página para gerar requests)")
-            page.wait_for_timeout(int(options.listen_seconds * 1000))
-            if detach_net:
-                detach_net()
-            if to_net_cands:
-                net = to_net_cands()
-                if kind == "network" or options.mode == "both":
-                    cands.extend(net)
-
-        if kind != "network" and options.mode in ("dom", "both"):
-            kinds = collection_kinds(kind)
-            print(f"coletando DOM kinds={sorted(kinds)}")
-            cands.extend(extract_dom(page, kinds))
-        elif options.mode == "dom" and kind == "network":
-            # classify said network but mode is dom — collect inputs as fallback
-            cands.extend(extract_dom(page, {"input"}))
-
-        if not cands:
-            print(
-                f"Nenhum candidato kind={kind}. "
-                "Tente --headed, --settle-ms 3000, ou URL de login direta.",
-                file=sys.stderr,
-            )
-            browser.close()
+    if selector_cache is not None and cache_lookup_allowed(options.mode, kind):
+        had_cached_record = selector_cache.get(selector_cache_key) is not None
+        cached = resolve_cache_hit(selector_cache, selector_cache_key, page)
+        if cached is not None:
+            cached_record, cached_matches = cached
+            cached_selector = str(cached_record.get("selector") or "")
+            cached_kind = str(cached_record.get("kind") or kind)
+            cached_href = str(cached_record.get("href_hint") or "")
+            print(f"cache hit · selector={cached_selector} matches={cached_matches}")
+            final_url = page.url
             if options.json_stdout:
                 return _emit_json(
                     build_result(
-                        ok=False,
+                        ok=True,
                         url=options.url,
-                        final_url=page.url,
+                        final_url=final_url,
                         intent=options.intent,
-                        kind=kind,
+                        kind=cached_kind,
+                        selector=cached_selector,
+                        selector_ok=True,
+                        matches=cached_matches,
+                        href=cached_href,
                         policy=options.policy,
+                        cached=True,
                     ),
                     json_stdout,
                 )
-            return 1
+            return 0
+        if had_cached_record:
+            print("cache inválido · removendo e redescobrindo")
 
-        print("-" * 72)
-        before = len(cands)
-        cands = dedupe_by_destination(cands)
-        after_dest = len(cands)
-        cands = apply_policy(cands, options.intent, options.policy)
+    if need_net:
+        print(f"ouvindo network por {options.listen_seconds:.1f}s …")
+        if options.headed:
+            print("(headed: interaja na página para gerar requests)")
+        page.wait_for_timeout(int(options.listen_seconds * 1000))
+        if detach_net:
+            detach_net()
+        if to_net_cands:
+            net = to_net_cands()
+            if kind == "network" or options.mode == "both":
+                cands.extend(net)
+
+    if kind != "network" and options.mode in ("dom", "both"):
+        kinds = collection_kinds(kind)
+        print(f"coletando DOM kinds={sorted(kinds)}")
+        cands.extend(extract_dom(page, kinds))
+    elif options.mode == "dom" and kind == "network":
+        cands.extend(extract_dom(page, {"input"}))
+
+    if not cands:
         print(
-            f"Candidatos kind={kind}: {before} → dest={after_dest} → "
-            f"policy={options.policy}: {len(cands)}"
+            f"Nenhum candidato kind={kind}. "
+            "Tente --headed, --settle-ms 3000, ou URL de login direta.",
+            file=sys.stderr,
         )
-        for c in cands[:30]:
-            print(f"  {c.summary}")
-        if len(cands) > 30:
-            print(f"  … +{len(cands) - 30} omitidos na listagem")
-        print("-" * 72)
-
-        # --- Phases: tournament or single shot ---
-        if options.no_tournament:
-            pool = list(cands)
-            if options.policy == "none":
-                random.shuffle(pool)
-            pool = pool[:batch_size]
-            chosen, total_ms, choice_conf = choose_one(
-                pool, options.intent, options.serve, page.url, page.title(), f"single(n={len(pool)})"
+        if options.json_stdout:
+            return _emit_json(
+                build_result(
+                    ok=False,
+                    url=options.url,
+                    final_url=page.url,
+                    intent=options.intent,
+                    kind=kind,
+                    policy=options.policy,
+                ),
+                json_stdout,
             )
-        else:
-            chosen, total_ms, choice_conf = tournament(
-                cands,
+        return 1
+
+    print("-" * 72)
+    before = len(cands)
+    cands = dedupe_by_destination(cands)
+    after_dest = len(cands)
+    cands = apply_policy(cands, options.intent, options.policy)
+    print(
+        f"Candidatos kind={kind}: {before} → dest={after_dest} → "
+        f"policy={options.policy}: {len(cands)}"
+    )
+    for c in cands[:30]:
+        print(f"  {c.summary}")
+    if len(cands) > 30:
+        print(f"  … +{len(cands) - 30} omitidos na listagem")
+    print("-" * 72)
+
+    if options.no_tournament:
+        pool = list(cands)
+        if options.policy == "none":
+            random.shuffle(pool)
+        pool = pool[:batch_size]
+        chosen, total_ms, choice_conf = choose_one(
+            pool,
+            options.intent,
+            options.serve,
+            page.url,
+            page.title(),
+            f"single(n={len(pool)})",
+        )
+    else:
+        chosen, total_ms, choice_conf = tournament(
+            cands,
+            options.intent,
+            options.serve,
+            page.url,
+            page.title(),
+            batch_size,
+            shuffle_pool=options.policy == "none",
+        )
+
+    if not options.no_confirm:
+        confirm_noul, ms_c = confirm_match(chosen, options.intent, options.serve)
+        print(
+            f"confirmação noul={confirm_noul:.2f} ({ms_c:.0f} ms) — P(atende o intent)"
+        )
+
+    low_confirm = confirm_noul is not None and confirm_noul < 0.5
+    low_choice = choice_conf is not None and choice_conf < 0.25
+    if low_confirm or low_choice:
+        retry_pool = candidates_overlapping_intent(cands, options.intent)
+        if retry_pool:
+            print(
+                "fallback de baixa confiança: repetindo uma vez com "
+                f"{len(retry_pool)} candidato(s) com overlap text/href"
+            )
+            chosen, retry_ms, choice_conf = tournament(
+                retry_pool,
                 options.intent,
                 options.serve,
                 page.url,
@@ -1002,73 +1232,58 @@ def _run_impl(options: FindOptions) -> int:
                 batch_size,
                 shuffle_pool=options.policy == "none",
             )
-
-        if not options.no_confirm:
-            confirm_noul, ms_c = confirm_match(chosen, options.intent, options.serve)
-            print(f"confirmação noul={confirm_noul:.2f} ({ms_c:.0f} ms) — P(atende o intent)")
-
-        # Single fallback pass: low-confidence winners are retried only among
-        # candidates whose visible text or href overlaps meaningful intent tokens.
-        low_confirm = confirm_noul is not None and confirm_noul < 0.5
-        low_choice = choice_conf is not None and choice_conf < 0.25
-        if low_confirm or low_choice:
-            retry_pool = candidates_overlapping_intent(cands, options.intent)
-            if retry_pool:
+            total_ms += retry_ms
+            if not options.no_confirm:
+                confirm_noul, ms_c = confirm_match(
+                    chosen, options.intent, options.serve
+                )
                 print(
-                    "fallback de baixa confiança: repetindo uma vez com "
-                    f"{len(retry_pool)} candidato(s) com overlap text/href"
+                    f"confirmação fallback noul={confirm_noul:.2f} "
+                    f"({ms_c:.0f} ms)"
                 )
-                chosen, retry_ms, choice_conf = tournament(
-                    retry_pool,
-                    options.intent,
-                    options.serve,
-                    page.url,
-                    page.title(),
-                    batch_size,
-                    shuffle_pool=options.policy == "none",
-                )
-                total_ms += retry_ms
-                if not options.no_confirm:
-                    confirm_noul, ms_c = confirm_match(
-                        chosen, options.intent, options.serve
-                    )
-                    print(
-                        f"confirmação fallback noul={confirm_noul:.2f} "
-                        f"({ms_c:.0f} ms)"
-                    )
-            else:
-                print(
-                    "fallback de baixa confiança indisponível: "
-                    "nenhum candidato com overlap text/href",
-                    file=sys.stderr,
-                )
+        else:
+            print(
+                "fallback de baixa confiança indisponível: "
+                "nenhum candidato com overlap text/href",
+                file=sys.stderr,
+            )
 
-        print("-" * 72)
-        print(f"vencedor ({total_ms:.0f} ms em choices)")
-        if chosen.source == "dom":
-            chosen = repair_selector(page, chosen)
-        print(f"  {chosen.summary}")
-        sel_ok = False
-        match_n = 0
-        if chosen.selector:
-            sel_ok, match_n = verify_selector(page, chosen.selector)
-            print(f"  selector: {chosen.selector}")
-            print(f"  selector_ok={sel_ok} matches={match_n} (querySelector/Playwright)")
-        if chosen.request:
-            print(f"  request: {chosen.request.get('method')} {chosen.request.get('url')}")
+    print("-" * 72)
+    print(f"vencedor ({total_ms:.0f} ms em choices)")
+    if chosen.source == "dom":
+        chosen = repair_selector(page, chosen)
+    print(f"  {chosen.summary}")
+    sel_ok = False
+    match_n = 0
+    if chosen.selector:
+        sel_ok, match_n = verify_selector(page, chosen.selector)
+        print(f"  selector: {chosen.selector}")
+        print(
+            f"  selector_ok={sel_ok} matches={match_n} (querySelector/Playwright)"
+        )
+    if chosen.request:
+        print(
+            f"  request: {chosen.request.get('method')} {chosen.request.get('url')}"
+        )
 
-        if confirm_noul is not None and confirm_noul < 0.5:
-            print("aviso: confiança baixa; candidato pode não ser o certo.", file=sys.stderr)
+    if confirm_noul is not None and confirm_noul < 0.5:
+        print(
+            "aviso: confiança baixa; candidato pode não ser o certo.",
+            file=sys.stderr,
+        )
 
-        if selector_cache is not None and save_cache_candidate(
-            selector_cache, selector_cache_key, chosen, sel_ok, match_n
-        ):
-            print(f"cache salvo · selector={chosen.selector}")
-        elif selector_cache is not None and chosen.selector and is_volatile_selector(chosen.selector):
-            print("cache não salvo · seletor volátil", file=sys.stderr)
+    if selector_cache is not None and save_cache_candidate(
+        selector_cache, selector_cache_key, chosen, sel_ok, match_n
+    ):
+        print(f"cache salvo · selector={chosen.selector}")
+    elif (
+        selector_cache is not None
+        and chosen.selector
+        and is_volatile_selector(chosen.selector)
+    ):
+        print("cache não salvo · seletor volátil", file=sys.stderr)
 
-        final_url = page.url
-        browser.close()
+    final_url = page.url
 
     if options.json_stdout:
         href = chosen.href or summary_field(chosen.summary, "href")
@@ -1093,6 +1308,20 @@ def _run_impl(options: FindOptions) -> int:
             json_stdout,
         )
     return 0
+
+
+def _run_impl(options: FindOptions) -> int:
+    _reconfigure_stdout()
+    json_stdout = sys.stdout
+    if options.json_stdout:
+        sys.stdout = sys.stderr
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=not options.headed)
+        page = browser.new_page()
+        try:
+            return run_on_page(page, options, json_stdout=json_stdout)
+        finally:
+            browser.close()
 
 
 def run(options: FindOptions) -> int:

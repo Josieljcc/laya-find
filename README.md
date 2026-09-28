@@ -7,10 +7,11 @@ Workspace local em torno do [Laya](https://github.com/NandhaKishorM/laya): motor
 | Peça | Função |
 |------|--------|
 | **`laya-serve`** | HTTP API de inferência (`/v1/systemone`, `/health`) |
-| **`laya_find`** | Dado URL + intent → JSON com `selector` estável (não executa o scrape) |
+| **`laya-find`** | Dado URL + intent → JSON com `selector` estável (não executa o scrape) |
+| **`laya-login`** | Login **manual** headed, depois find na **mesma** sessão Playwright |
 | **Seu scraper** | Usa o seletor devolvido (Playwright, Selenium, etc.) |
 
-**Fora de escopo do find:** fill, click de submit, login E2E. Isso fica no seu scraper.
+**Fora de escopo do find:** fill/click/submit automático. `laya-login` só espera o login humano (Enter).
 
 ## Início rápido
 
@@ -25,6 +26,10 @@ $env:LAYA_PRELOAD='1'; $env:LAYA_MODELS='multilingual'; $env:LAYA_DEVICE='cpu'
 
 # 3) Descobrir seletor
 .\.venv\Scripts\laya-find.exe --policy strict --url "https://exemplo.com/" --mode dom --intent "botão de login" --json --settle-ms 3000
+
+# 3b) Página atrás de login (manual na janela + find na mesma sessão)
+.\.venv\Scripts\laya-login.exe --login-url "https://exemplo.com/login"
+# opcional: --url / --intent / --json / --loop
 ```
 
 Stdout = uma linha JSON. Logs = stderr. Detalhes: [docs/selectors/json-contract.md](docs/selectors/json-contract.md).
@@ -46,18 +51,21 @@ Stdout = uma linha JSON. Logs = stderr. Detalhes: [docs/selectors/json-contract.
 ```
 src/laya_find/
   cli.py                    # Typer / entry point laya-find
-  find.py                   # pipeline Playwright → Laya → resultado
+  login_cli.py / login_flow.py  # laya-login (login manual + find)
+  find.py                   # run / run_on_page (Playwright → Laya → JSON)
   selectors.py, policy.py   # lógica testável
   cache.py, contract.py, …
 examples/
   README.md                 # índice dos exemplos
   LAYA_FIND.md              # cookbook scraper ↔ find
-  find_demo.ps1 / hotmart_senha.ps1
+  find_demo.ps1 / hotmart_senha.ps1 / save_auth.py
   fast_triage.py / laya_login.py   # demos apenas
 docs/
   …                         # guias humanos + agentes
 tests/                      # pytest
 ```
+
+Kinds DOM: `input` | `button` | `link` | `select` | `clickable` | `image` (+ `network`). Ver [docs/selectors/cli.md](docs/selectors/cli.md).
 
 Índice dos exemplos: [examples/README.md](examples/README.md).
 ## Requisitos

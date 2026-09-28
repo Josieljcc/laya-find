@@ -15,3 +15,5 @@ selector_cache.json
 .eggs/
 .coverage
 htmlcov/
+
+auth.json

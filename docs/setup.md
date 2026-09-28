@@ -17,12 +17,13 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m playwright install chromium
 ```
 
-O install editável fornece `laya-find`, `laya-serve` e as dependências de desenvolvimento. Instale o Chromium na primeira configuração (ou novamente após uma atualização relevante do Playwright).
+O install editável fornece `laya-find`, `laya-login`, `laya-serve` e as dependências de desenvolvimento. Instale o Chromium na primeira configuração (ou novamente após uma atualização relevante do Playwright).
 
 Verificar:
 
 ```powershell
 .\.venv\Scripts\laya-find.exe --help
+.\.venv\Scripts\laya-login.exe --help
 .\.venv\Scripts\python.exe -m laya_find --help
 .\.venv\Scripts\python.exe -m pytest tests -q
 ```
