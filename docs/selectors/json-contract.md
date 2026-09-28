@@ -40,7 +40,7 @@ Stderr: progresso humano.
 
 Ainda é uma linha JSON com `"ok": false` (args faltando, serve offline, zero candidatos, erro Playwright/Laya). Exit code ≠ 0. Detalhe em `text` e/ou stderr.
 
-## Consumo PowerShell
+## Consumo (bash / PowerShell)
 
 Ver [../../examples/LAYA_FIND.md](../../examples/LAYA_FIND.md).
 

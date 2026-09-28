@@ -11,10 +11,11 @@ Para agentes e humanos que alteram o código deste workspace.
 
 ## Preparação
 
-O install editável é obrigatório antes de executar testes ou a CLI:
+Instalação multiplataforma: [setup.md](setup.md). O install editável é obrigatório antes de testes ou CLI:
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```bash
+# venv ativo
+python -m pip install -e ".[dev]"
 ```
 
 ## Layout de testes
@@ -28,11 +29,12 @@ tests/
   test_normalize.py
   test_tournament_labels.py
   test_cli_behavior.py
+  …
 ```
 
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests -q
-.\.venv\Scripts\python.exe -m pytest tests\test_selectors.py -v
+```bash
+python -m pytest tests -q
+python -m pytest tests/test_selectors.py -v
 ```
 
 Os testes importam o pacote instalado como `laya_find`.
@@ -51,9 +53,9 @@ Os testes importam o pacote instalado como `laya_find`.
 
 Com `laya-serve` em `:8000`:
 
-```powershell
-.\.venv\Scripts\laya-find.exe `
-  --policy strict --url "https://www.eduzz.com/" --mode dom `
+```bash
+laya-find \
+  --policy strict --url "https://www.eduzz.com/" --mode dom \
   --intent "botão de login" --json --settle-ms 3000 --no-cache
 ```
 

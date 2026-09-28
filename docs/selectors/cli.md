@@ -1,10 +1,14 @@
 # CLI — `laya-find`
 
-```powershell
-.\.venv\Scripts\laya-find.exe --help
+Com o venv ativo (ver [../setup.md](../setup.md)):
+
+```bash
+laya-find --help
 # equivalente:
-.\.venv\Scripts\python.exe -m laya_find --help
+python -m laya_find --help
 ```
+
+Sem ativar: `.venv/bin/laya-find` (Linux/macOS) ou `.venv\Scripts\laya-find.exe` (Windows).
 
 A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `pip install -e ".[dev]"` antes do primeiro uso.
 
@@ -34,11 +38,11 @@ A CLI usa Typer, possui um único comando e é instalada pelo projeto. Execute `
 
 ## `laya-login` (página atrás de autenticação)
 
-```powershell
-.\.venv\Scripts\laya-login.exe --help
-.\.venv\Scripts\laya-login.exe --login-url "https://exemplo.com/login"
+```bash
+laya-login --help
+laya-login --login-url "https://exemplo.com/login"
 # depois: Enter (pós-login) → URL alvo + intent → find na mesma sessão
-.\.venv\Scripts\laya-login.exe --login-url "…" --url "…" --intent "…" --json --loop
+laya-login --login-url "…" --url "…" --intent "…" --json --loop
 ```
 
 Login é **manual** (Chromium headed). Não preenche credenciais. Spec: [../superpowers/specs/2026-09-28-laya-login-design.md](../superpowers/specs/2026-09-28-laya-login-design.md).
@@ -55,18 +59,18 @@ Login é **manual** (Chromium headed). Não preenche credenciais. Spec: [../supe
 
 **Scraper (recomendado):**
 
-```powershell
-.\.venv\Scripts\laya-find.exe `
-  --policy strict --url "https://site/" --mode dom `
+```bash
+laya-find \
+  --policy strict --url "https://site/" --mode dom \
   --intent "campo de email" --json --settle-ms 3000
 ```
 
 **Clickable (div/collapse, não button nativo):**
 
-```powershell
-.\.venv\Scripts\laya-find.exe `
-  --url "https://site/app" --mode dom `
-  --intent "cabeçalho collapse do módulo" --kind clickable `
+```bash
+laya-find \
+  --url "https://site/app" --mode dom \
+  --intent "cabeçalho collapse do módulo" --kind clickable \
   --json --settle-ms 3000
 ```
 
@@ -74,10 +78,10 @@ Login é **manual** (Chromium headed). Não preenche credenciais. Spec: [../supe
 
 **Image (`<img>` / thumbnails):**
 
-```powershell
-.\.venv\Scripts\laya-find.exe `
-  --url "https://site/app" --mode dom `
-  --intent "imagem do módulo" --kind image `
+```bash
+laya-find \
+  --url "https://site/app" --mode dom \
+  --intent "imagem do módulo" --kind image \
   --json --settle-ms 3000
 ```
 
